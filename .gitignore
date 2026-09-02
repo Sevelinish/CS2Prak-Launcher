@@ -1,0 +1,33 @@
+# build output
+bin/
+obj/
+artifacts/
+
+# runtime state the launcher writes next to the exe
+# anchored to the repo root: unanchored, "update/" also swallowed
+# src/Cs2Prak.Core/Update/
+/launcher.json
+/plugin_versions.json
+/overlay_state.json
+/demo_library.json
+/faceit_key.txt
+/faceit_avatars.json
+/release.json
+/desktop_error.log
+/update_error.log
+/robocopy.log
+/skins.db
+/skins.db-journal
+/matchzy.db
+/demos_cache/
+/cs2Server/
+/update/
+*.dem
+*.dem.gz
+*.dem.zst
+
+# IDE
+.vs/
+.idea/
+*.user
+*.suo

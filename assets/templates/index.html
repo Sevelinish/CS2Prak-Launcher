@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CS2 Practice Server</title>
+    <link rel="stylesheet" href="/static/style.css?v=176">
+    
+    <script>(function(){try{document.documentElement.removeAttribute('data-theme');localStorage.setItem('cs2prak_theme','dark');}catch(e){}})();</script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@600;700;800&family=Inter:wght@600;700&family=IBM+Plex+Mono:wght@600;700&display=swap" rel="stylesheet">
+</head>
+<body class="shell-desktop" data-shell="desktop">
+    <div class="app">
+        
+        <div class="deskbar" id="deskbar">
+            <div class="dk-id pywebview-drag-region">
+                <span class="logo-badge dk-badge">CS2</span>
+                <span class="dk-name">PRACTICE SERVER</span>
+            </div>
+            <div class="dk-mid pywebview-drag-region"></div>
+            <span class="dk-ver" id="deskVersion"></span>
+            <div class="dk-win">
+                <button class="dk-btn" id="dkMin" type="button" data-i18n="deskbar.min" data-i18n-attr="title" title="Minimize" aria-label="Minimize">
+                    <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M1.5 6h9"/></svg>
+                </button>
+                <button class="dk-btn" id="dkMax" type="button" data-i18n="deskbar.max" data-i18n-attr="title" title="Maximize" aria-label="Maximize">
+                    <svg class="dk-i-max" viewBox="0 0 12 12" aria-hidden="true"><rect x="1.7" y="1.7" width="8.6" height="8.6"/></svg>
+                    <svg class="dk-i-res" viewBox="0 0 12 12" aria-hidden="true"><path d="M3.6 3.6V1.4h7v7H8.4"/><rect x="1.4" y="3.6" width="7" height="7"/></svg>
+                </button>
+                <button class="dk-btn dk-close" id="dkClose" type="button" data-i18n="deskbar.close" data-i18n-attr="title" title="Close to tray" aria-label="Close to tray">
+                    <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 2l8 8M10 2l-8 8"/></svg>
+                </button>
+            </div>
+        </div>
+        <header class="header">
+            <div class="header-inner">
+                <div class="logo">
+                    <div class="logo-badge">CS2</div>
+                    <div class="logo-text">
+                        <span class="logo-title">PRACTICE SERVER</span>
+                        <span class="logo-sub">LOCAL LAUNCHER</span>
+                    </div>
+                </div>
+                <span class="app-version" id="appVersion"></span>
+            </div>
+        </header>
+        <main class="main">
+            <div class="tab-bar">
+                <div class="tab-bar-inner">
+                    <button class="tab-btn active" data-tab="0" data-i18n="tab.server">SERVER</button>
+                    <button class="tab-btn"         data-tab="1" data-i18n="tab.skins">SKINS</button>
+                    <button class="tab-btn"         data-tab="2" data-i18n="tab.plugins">PLUGINS</button>
+                    <button class="tab-btn"         data-tab="3" data-i18n="tab.binds">BINDS</button>
+                    <div class="tab-dd" id="demoDd">
+                        <button class="tab-btn tab-dd-toggle" id="demoDdToggle"><span data-i18n="tab.demo">ANALYTICS</span><span class="tab-beta" data-i18n="tab.beta">BETA</span><svg class="tab-dd-caret" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 6l5 5 5-5" stroke="currentColor" stroke-width="2" stroke-linecap="square"/></svg></button>
+                        <div class="tab-dd-menu" id="demoDdMenu" hidden>
+                            <button class="tab-btn tab-dd-item" data-tab="4" data-i18n="tab.demoViewer">Demo Viewer</button>
+                            <div class="tab-dd-sub">
+                                <button class="tab-btn tab-dd-item tab-dd-sub-toggle" type="button"><span data-i18n="tab.statistics">Statistics</span><svg class="tab-dd-subcaret" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="2" stroke-linecap="square"/></svg></button>
+                                <div class="tab-dd-submenu">
+                                    <button class="tab-btn tab-dd-item" data-tab="8" data-i18n="tab.statsDefault">Default</button>
+                                    <button class="tab-btn tab-dd-item" data-tab="9" data-i18n="tab.statsAdvanced">Advanced</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="tab-btn"         data-tab="5" data-i18n="tab.download">CREATE SERVER</button>
+                    <button class="tab-btn tab-btn-settings" data-tab="7" data-i18n="tab.settings">SETTINGS</button>
+                </div>
+            </div>
+            <div class="tabs-viewport">
+                <div class="tabs-track" id="tabsTrack">
+                    <div class="tab-panel">
+                        <section class="panel map-panel">
+                            <div class="panel-header">
+                                <h2 class="panel-title" data-i18n="server.title">MAP SELECTION</h2>
+                                <span class="panel-tag" data-i18n="server.tag">FACEIT POOL</span>
+                            </div>
+                            <div class="server-line" id="serverLine">
+                                <span class="server-line-seg">
+                                    <span class="server-line-k" data-i18n="server.statusLabel">SERVER</span>
+                                    <span class="status-dot" id="serverLineDot"></span>
+                                    <span class="server-line-v" id="serverLineStatus">OFFLINE</span>
+                                </span>
+                                <span class="server-line-sep" aria-hidden="true">·</span>
+                                <span class="server-line-seg">
+                                    <span class="server-line-k" data-i18n="server.mapLabel">MAP</span>
+                                    <span class="server-line-v" id="serverLineMap">—</span>
+                                </span>
+                            </div>
+                            <div class="maps-grid" id="mapsGrid">
+                            </div>
+                            <details class="maps-extra" id="mapsExtra" hidden>
+                                <summary class="maps-extra-sum">
+                                    <span data-i18n="server.extra">ADDITIONAL</span>
+                                    <b class="maps-extra-n">0</b>
+                                </summary>
+                                <div class="maps-grid" id="mapsGridExtra"></div>
+                            </details>
+                            <div class="selected-map-bar" id="selectedMapBar">
+                                <span class="selected-map-label" data-i18n="server.selected">SELECTED:</span>
+                                <span class="selected-map-name" id="selectedMapName">—</span>
+                            </div>
+                            <div class="connect-bar" id="connectBar" style="display:none">
+                                <div class="connect-bar-inner">
+                                    <span class="connect-bar-label">
+                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                                        <span data-i18n="server.connect">CONNECT</span>
+                                    </span>
+                                    <span class="connect-addr" id="connectAddr">—</span>
+                                    <button class="btn-check-updates connect-copy-btn" id="connectCopyBtn">
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                                        <span data-i18n="server.copy">COPY</span>
+                                    </button>
+                                    <button class="btn-connect-join" id="connectJoinBtn">
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                                        <span data-i18n="server.join">JOIN IN CS2</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+                    <div class="tab-panel">
+                        <div class="skins-tab-wrap">
+                            <div class="skins-tab-header">
+                                <h2 class="panel-title" data-i18n="skins.title">WEAPON SKINS</h2>
+                                <span class="panel-tag" data-i18n="skins.tag">WEAPON PRINTS</span>
+                            </div>
+                            <p class="skins-desc" data-i18n="skins.desc">
+                                Enter your SteamID64 or paste your Steam profile link and click APPLY
+                                to apply your weapon skins on the server.
+                            </p>
+                            <div class="input-row">
+                                <label class="input-label" for="steamId" data-i18n="skins.idLabel">STEAM ID 64 OR PROFILE LINK</label>
+                                <div class="admin-input-wrap">
+                                    <input
+                                        type="text"
+                                        id="steamId"
+                                        class="input-field"
+                                        placeholder="76561198… or steamcommunity.com/id/yourname"
+                                        data-i18n="skins.idPlaceholder" data-i18n-attr="placeholder"
+                                        autocomplete="off"
+                                        spellcheck="false"
+                                    >
+                                    <button class="btn-check-updates" id="resolveSteamBtn" data-i18n="skins.apply">APPLY</button>
+                                </div>
+                                <span class="input-hint" data-i18n="skins.idHint">Paste a profile link and click APPLY — it becomes your SteamID64 automatically.</span>
+                            </div>
+                            <button class="btn-skin-editor" id="loadSkinsBtn">
+                                <div class="bse-text">
+                                    <span class="bse-label" data-i18n="skins.editor">OPEN SKIN EDITOR</span>
+                                    <span class="bse-sub" data-i18n="skins.editorSub">Configure weapon skins, knives, gloves &amp; agents</span>
+                                </div>
+                            </button>
+                            <button class="btn-skin-editor btn-hltv-import" id="importHltvBtn">
+                                <div class="bse-text">
+                                    <span class="bse-label" data-i18n="hltv.editor">IMPORT PRO LOADOUT</span>
+                                    <span class="bse-sub" data-i18n="hltv.editorSub">Pull a pro player's skins from their HLTV profile</span>
+                                </div>
+                            </button>
+                            <div class="skins-status" id="skinsStatus"></div>
+                        </div>
+                    </div>
+                    <div class="tab-panel">
+                        <div class="plugins-panel">
+                            <div class="panel-header">
+                                <h2 class="panel-title" data-i18n="plugins.title">PLUGINS</h2>
+                                <span class="panel-tag" data-i18n="plugins.tag">CS2 MODS</span>
+                            </div>
+                            <div class="plugins-toolbar">
+                                <div class="os-toggle-wrap">
+                                    <span class="os-lbl" id="osLabelWin" data-i18n="plugins.win">WINDOWS</span>
+                                    <label class="os-switch">
+                                        <input type="checkbox" id="osSwitch">
+                                        <span class="os-track"></span>
+                                    </label>
+                                    <span class="os-lbl" id="osLabelLin" data-i18n="plugins.lin">LINUX</span>
+                                </div>
+                                <span class="plugins-hint" id="pluginsHint"></span>
+                                <button class="btn-plugin-autoinstall" id="autoInstallBtn" data-i18n="plugins.autoInstall">AUTO-INSTALL ALL</button>
+                                <div class="plugins-menu" id="pluginsMenu">
+                                    <button class="btn-check-updates plugins-fn-btn" id="pluginsFnBtn" aria-expanded="false" data-i18n="plugins.function">FUNCTION</button>
+                                    <div class="plugins-menu-list" id="pluginsMenuList">
+                                        <button class="btn-check-updates" id="managePluginsBtn" data-i18n="plugins.manage">MANAGE</button>
+                                        <button class="btn-check-updates" id="checkUpdatesBtn" data-i18n="plugins.check">CHECK UPDATES</button>
+                                        <button class="btn-check-updates" id="openCsgoBtn" data-i18n="plugins.opencsgo">OPEN SERVER FOLDER</button>
+                                        <button class="btn-check-updates" id="configureBtn" data-i18n="plugins.configure">CONFIGURE</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="plugins-list" id="pluginsList"></div>
+                            <details class="plug-help">
+                                <summary><span data-i18n="plugHelp.title">How to add your own plugins</span><svg class="plug-help-caret" width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="2" stroke-linecap="square"/></svg></summary>
+                                <div class="plug-help-body">
+                                    <p class="plug-help-intro" data-i18n="plugHelp.intro">For other CounterStrikeSharp plugins (install Metamod + CounterStrikeSharp from the list above first):</p>
+                                    <ol class="plug-help-steps">
+                                        <li data-i18n="plugHelp.s1">Open FUNCTION → OPEN SERVER FOLDER — it opens the server's csgo folder.</li>
+                                        <li data-i18n="plugHelp.s2">Go into the plugins folder:</li>
+                                    </ol>
+                                    <code class="plug-help-path">…\csgo\addons\counterstrikesharp\plugins\</code>
+                                    <ol class="plug-help-steps" start="3">
+                                        <li data-i18n="plugHelp.s3">Download the plugin and extract it — each plugin is its own folder with a .dll inside.</li>
+                                        <li data-i18n="plugHelp.s4">Drop that folder into plugins\. Any config goes in addons\counterstrikesharp\configs\plugins\.</li>
+                                        <li data-i18n="plugHelp.s5">Restart the server. Check it loaded with css_plugins list in the server console.</li>
+                                    </ol>
+                                </div>
+                            </details>
+                            <div class="admin-row">
+                                <label class="input-label" for="adminSteamId" data-i18n="plugins.adminLabel">SERVER ADMIN STEAM ID64</label>
+                                <div class="admin-input-wrap">
+                                    <input type="text" id="adminSteamId" class="input-field"
+                                           placeholder="76561198XXXXXXXXX" maxlength="17"
+                                           autocomplete="off" spellcheck="false">
+                                    <button class="btn-check-updates" id="saveAdminBtn" data-i18n="plugins.save">SAVE</button>
+                                </div>
+                                <span class="input-hint" data-i18n="plugins.adminHint">Sets the server admin with full access (@css/root)</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="tab-panel">
+                        <div class="binds-panel">
+                            <div class="panel-header">
+                                <h2 class="panel-title" data-i18n="binds.title">BINDS</h2>
+                                <span class="panel-tag" data-i18n="binds.tag">CLIENT CONFIG</span>
+                            </div>
+                            <p class="skins-desc">
+                                Bind plugin chat-commands to keys. This generates
+                                <strong>sBinds.cfg</strong> in your CS2 <strong>cfg</strong> folder —
+                                run <code>exec sBinds</code> in the game console to apply them.
+                            </p>
+                            <div class="binds-accordion" id="bindsAccordion">
+                                <div class="binds-loading" data-i18n="binds.loading">Loading commands…</div>
+                            </div>
+                            <div class="binds-footer">
+                                <span class="binds-count" id="bindsCount">0 binds set</span>
+                                <button class="btn-check-updates" id="bindsExampleBtn" data-i18n="binds.example">EXAMPLE</button>
+                                <button class="btn-check-updates" id="bindsClearBtn" data-i18n="binds.clear">CLEAR ALL</button>
+                                <button class="btn btn-launch" id="bindsSaveBtn" style="padding:11px 26px;font-size:13px;">
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                                    <span data-i18n="binds.save">SAVE sBinds.cfg</span>
+                                </button>
+                            </div>
+                            <div class="binds-result" id="bindsResult"></div>
+                        </div>
+                    </div>
+                    <div class="tab-panel">
+                        <div class="demo-panel">
+                            <div class="demo-picker" id="demoPicker">
+                                <div class="panel-header">
+                                    <h2 class="panel-title" data-i18n="demo.title">DEMO VIEWER</h2>
+                                    <span class="panel-tag" data-i18n="demo.tag">2D REPLAY</span>
+                                </div>
+                                <p class="skins-desc">
+                                    Drop in <strong>.dem</strong> files (or a <strong>.zip</strong> of several) and they parse
+                                    in the background, one at a time. Parsed demos stay in your local
+                                    <strong>library</strong> below — click any to replay it in 2D.
+                                </p>
+                                <label class="demo-drop" id="demoDrop">
+                                    <input type="file" id="demoUpload" accept=".dem,.gz,.zst,.zip" multiple hidden>
+                                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 9 12 4 17 9"/><line x1="12" y1="4" x2="12" y2="16"/></svg>
+                                    <span class="demo-drop-title" data-i18n="demo.dropTitle">Drop demos here, or click to choose</span>
+                                    <span class="demo-drop-sub" data-i18n="demo.dropSub">.dem · .dem.gz · .dem.zst · .zip — parsed locally, nothing goes online.</span>
+                                </label>
+                                <div class="demo-pick-hint" id="demoPickHint"></div>
+                                <section class="demo-queue" id="demoQueue" hidden>
+                                    <div class="demo-queue-head">
+                                        <span class="demo-section-label" data-i18n="demo.queue">PARSE QUEUE</span>
+                                        <span class="demo-queue-count" id="demoQueueCount"></span>
+                                    </div>
+                                    <div class="demo-queue-list" id="demoQueueList"></div>
+                                </section>
+                                <section class="demo-library" id="demoLibrary">
+                                    <div class="demo-library-head">
+                                        <span class="demo-section-label" data-i18n="demo.library">LIBRARY</span>
+                                        <span class="demo-library-count" id="demoLibraryCount"></span>
+                                    </div>
+                                    <div class="demo-list" id="demoList"></div>
+                                </section>
+                            </div>
+                            <div class="dvload" id="dvLoading" hidden>
+                                <div class="dvload-box">
+                                    <div class="dvload-bars"><i></i><i></i><i></i><i></i></div>
+                                    <div class="dvload-title" data-i18n="dv.loading">Loading demo…</div>
+                                    <div class="dvload-sub" data-i18n="dv.loadingSub">Parsing frames, radar and player profiles</div>
+                                </div>
+                            </div>
+                            <div class="demo-viewer" id="demoViewer" style="display:none">
+                                <div class="dv-top">
+                                    <button class="dv-back" id="dvBack" title="Back to demo list">
+                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                                        <span data-i18n="nav.back">BACK</span>
+                                    </button>
+                                    <span class="dv-map">
+                                        <img class="dv-map-thumb" id="dvMapThumb" alt="" width="44" height="28">
+                                        <span class="dv-map-name" id="dvMap">—</span>
+                                    </span>
+                                    <div class="dv-meta">
+                                        <span class="dv-score" id="dvScore"></span>
+                                        <div class="dv-roundtag-wrap">
+                                            <button class="dv-roundtag" id="dvRoundTag">ROUND —</button>
+                                            <div class="dv-rounds-pop" id="dvRoundsPop"><div class="dv-rounds" id="dvRounds"></div></div>
+                                        </div>
+                                        <span class="dv-bombtag" id="dvBombTag" style="display:none">● BOMB</span>
+                                    </div>
+                                    <span class="dv-clock" id="dvClock">0:00</span>
+                                    <div class="dv-dock">
+                                        <button class="dv-launch" id="dvLaunch" style="display:none">LAUNCH SERVER</button>
+                                        <button class="dv-impact" id="dvImpact" data-i18n="impact.btnTitle" data-i18n-attr="title" title="Positional analysis per side">
+                                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><path d="M3 20V9M9 20V4M15 20v-7M21 20v-11"/></svg>
+                                            <span data-i18n="impact.btn">IMPACT</span><b>1.4</b>
+                                        </button>
+                                        <button class="dv-impact dv-cine-open" id="dvCineOpen" data-i18n="dv.cine.btnTitle" data-i18n-attr="title" title="Play back every unique grenade lineup in this match">
+                                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><rect x="2" y="4" width="20" height="16"/><path d="M7 4v16M17 4v16M2 12h20"/></svg>
+                                            <span data-i18n="dv.cine.btn">REVIEW MATCH NADES</span>
+                                        </button>
+                                        <button class="dv-floor" id="dvFloor" style="display:none">UPPER</button>
+                                        <div class="dv-settings-wrap">
+                                            <button class="dv-gear" id="dvGear" title="Display settings" aria-haspopup="true" aria-expanded="false">
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                                            </button>
+                                            <div class="dv-settings" id="dvSettings" role="menu" aria-hidden="true">
+                                                <div class="dv-set-group">
+                                                    <div class="dv-set-label">Overlays</div>
+                                                    <label class="dv-switch">
+                                                        <span>Nicknames</span>
+                                                        <input type="checkbox" id="dvTgNames" checked>
+                                                        <span class="dv-switch-track" aria-hidden="true"></span>
+                                                    </label>
+                                                    <label class="dv-switch">
+                                                        <span>HP bars</span>
+                                                        <input type="checkbox" id="dvTgHp" checked>
+                                                        <span class="dv-switch-track" aria-hidden="true"></span>
+                                                    </label>
+                                                    <label class="dv-switch">
+                                                        <span>Tracers</span>
+                                                        <input type="checkbox" id="dvTgTracer" checked>
+                                                        <span class="dv-switch-track" aria-hidden="true"></span>
+                                                    </label>
+                                                    <label class="dv-switch">
+                                                        <span data-i18n="demo.voiceList">Voice list</span>
+                                                        <input type="checkbox" id="dvTgVoiceList" checked>
+                                                        <span class="dv-switch-track" aria-hidden="true"></span>
+                                                    </label>
+                                                </div>
+                                                <div class="dv-set-group">
+                                                    <div class="dv-set-label">Voice chat</div>
+                                                    <div class="dv-seg" id="dvTgVoice" role="radiogroup" aria-label="Voice chat">
+                                                        <button class="dv-seg-btn on" data-voice="0" role="radio" aria-checked="true">Off</button>
+                                                        <button class="dv-seg-btn" data-voice="1" role="radio" aria-checked="false">Both</button>
+                                                        <button class="dv-seg-btn" data-voice="2" role="radio" aria-checked="false">CT</button>
+                                                        <button class="dv-seg-btn" data-voice="3" role="radio" aria-checked="false">T</button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="dv-body">
+                                    <div class="dv-left">
+                                        <div class="dv-side-title">KILL FEED</div>
+                                        <div class="dv-kills" id="dvKills"></div>
+                                        <div class="dv-side-title dv-nades-title">NADES</div>
+                                        <div class="dv-nades" id="dvNades"></div>
+                                    </div>
+                                    <div class="dv-stage">
+                                        <canvas id="dvCanvas" width="520" height="520"></canvas>
+                                        <canvas id="dvDraw" class="dv-draw" aria-hidden="true"></canvas>
+                                        <div class="dv-draw-badge" id="dvDrawBadge" hidden>✏ DRAW · Z clears</div>
+                                        <button class="dv-fs" id="dvFs" title="Fullscreen (F)">⛶</button>
+                                        <div class="dv-cine" id="dvCine" hidden>
+                                            <div class="dv-cine-bar">
+                                                <span class="dv-cine-n" id="dvCineN">0 / 0</span>
+                                                <span class="dv-cine-lbl" id="dvCineLbl"></span>
+                                                <b class="dv-cine-dup" id="dvCineDup" hidden></b>
+                                                <span class="dv-cine-gap"></span>
+                                                <button class="dv-cine-btn" id="dvCinePrev" data-i18n="dv.cine.prev" data-i18n-attr="title" title="Previous lineup">
+                                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
+                                                </button>
+                                                <button class="dv-cine-btn" id="dvCinePlay" data-i18n="dv.cine.pause" data-i18n-attr="title" title="Pause the reel (Space)"></button>
+                                                <button class="dv-cine-btn" id="dvCineNext" data-i18n="dv.cine.next" data-i18n-attr="title" title="Next lineup">
+                                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M16 6h2v12h-2zM6 18l8.5-6L6 6v12z"/></svg>
+                                                </button>
+                                                <button class="dv-cine-btn is-exit" id="dvCineExit" data-i18n="dv.cine.exit">ESC</button>
+                                            </div>
+                                            <div class="dv-cine-card" id="dvCineCard" hidden>
+                                                <div class="dv-cine-cardbox">
+                                                    <span class="dv-cine-av" id="dvCineAv"></span>
+                                                    <span class="dv-cine-id">
+                                                        <span class="dv-cine-name" id="dvCineName"></span>
+                                                        <span class="dv-cine-sub">
+                                                            <img class="dv-cine-lvl" id="dvCineLvl" alt="" hidden>
+                                                            <b class="dv-cine-elo" id="dvCineElo"></b>
+                                                            <span class="dv-cine-kda" id="dvCineKda"></span>
+                                                        </span>
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <div class="dv-cine-tp" id="dvCineTp" hidden>
+                                                <span class="dv-cine-tp-l" data-i18n="dv.cine.teleport">TELEPORT</span>
+                                                <code id="dvCineTpCode"></code>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="dv-side">
+                                        <div class="dv-side-title">PLAYERS</div>
+                                        <div class="dv-players" id="dvPlayers"></div>
+                                    </div>
+                                </div>
+                                <div class="dv-transport">
+                                    <div class="dv-ctl-group">
+                                        <button class="dv-ctl" id="dvPrevRound" data-i18n="dv.tp.prev" data-i18n-attr="title" title="Previous round">
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
+                                        </button>
+                                        <button class="dv-ctl dv-play" id="dvPlay" data-i18n="dv.tp.play" data-i18n-attr="title" title="Play / pause">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                                        </button>
+                                        <button class="dv-ctl" id="dvNextRound" data-i18n="dv.tp.next" data-i18n-attr="title" title="Next round">
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M16 6h2v12h-2zM6 18l8.5-6L6 6z"/></svg>
+                                        </button>
+                                    </div>
+                                    <button class="dv-ctl dv-ctl-lone" id="dvSkipBuy" data-i18n="dv.tp.skipBuy" data-i18n-attr="title" title="Skip buy phase (jump to round start)">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M4 18l8.5-6L4 6v12zm9-12v12l8.5-6z"/></svg>
+                                    </button>
+                                    <div class="dv-spd" id="dvSpeedWrap">
+                                        <button class="dv-speed" id="dvSpeed" type="button" aria-haspopup="listbox" aria-expanded="false" data-i18n="dv.tp.speed" data-i18n-attr="title" title="Playback speed — click to pick 0.25× 0.5× 1× 2× 4×">1×<i class="dv-spd-caret" aria-hidden="true"></i></button>
+                                        <div class="dv-spd-menu" id="dvSpeedMenu" role="listbox" hidden></div>
+                                    </div>
+                                    <div class="dv-timeline" id="dvTimeline">
+                                        <div class="dv-tl-fill" id="dvTlFill"></div>
+                                        <div class="dv-tl-rounds" id="dvTlRounds"></div>
+                                        <div class="dv-tl-kills" id="dvTlKills"></div>
+                                        <div class="dv-tl-head" id="dvTlHead"></div>
+                                    </div>
+                                    <span class="dv-elapsed" id="dvElapsed">0:00<i>/</i>0:00</span>
+                                </div>
+                                <div class="dv-legend" data-i18n="demo.legend">SCROLL zoom · DRAG pan · CLICK a player while paused → sends you there in game (exec expPos) · C draw · Z clear · F fullscreen</div>
+                                <div class="dv-nadepop" id="dvNadePop" style="display:none">
+                                    <div class="dv-nadepop-box">
+                                        <button class="dv-nadepop-x" id="dvNadeClose" aria-label="Close">✕</button>
+                                        <div class="dv-np-head">
+                                            <span class="dv-np-ic" id="dvNadeIcon"></span>
+                                            <span class="dv-np-id">
+                                                <span class="dv-np-type" id="dvNadeType">NADE</span>
+                                                <span class="dv-np-by" id="dvNadeBy"></span>
+                                            </span>
+                                        </div>
+                                        <p class="dv-np-why" data-i18n="dv.np.why">Sends you to the exact spot this was thrown from, facing the same way — the lineup, not just the landing point.</p>
+                                        <div class="dv-nadepop-btns">
+                                            <button class="dv-nadepop-btn is-primary" id="dvNadeExport" data-i18n="dv.np.send">SEND TO GAME</button>
+                                            <button class="dv-nadepop-btn" id="dvNadeCopy" data-i18n="dv.np.copy">COPY</button>
+                                        </div>
+                                        <div class="dv-np-exec">
+                                            <span class="dv-np-exec-l" data-i18n="dv.np.inGame">In game</span>
+                                            <code>exec expNade</code>
+                                        </div>
+                                        <details class="dv-np-raw">
+                                            <summary data-i18n="dv.np.raw">Coordinates</summary>
+                                            <div class="dv-nadepop-line"><span>setpos</span><code id="dvNadePos">—</code></div>
+                                            <div class="dv-nadepop-line"><span>setang</span><code id="dvNadeAng">—</code></div>
+                                        </details>
+                                        <div class="dv-nadepop-note" id="dvNadeNote"></div>
+                                    </div>
+                                </div>
+                                <div class="dv-nadepop dv-cinepick" id="dvCinePick" style="display:none">
+                                    <div class="dv-nadepop-box">
+                                        <button class="dv-nadepop-x" id="dvCinePickX" aria-label="Close">✕</button>
+                                        <div class="dv-np-head">
+                                            <span class="dv-np-id">
+                                                <span class="dv-np-type" data-i18n="dv.cine.title">MATCH NADES</span>
+                                                <span class="dv-np-by" data-i18n="dv.cine.sub">Every lineup, once</span>
+                                            </span>
+                                        </div>
+                                        <p class="dv-np-why" data-i18n="dv.cine.why">Walks the whole match one throw at a time: close on the thrower, freeze on the release with the teleport line, then ride the grenade. Repeats of a lineup are folded into a single showing.</p>
+                                        <div class="dv-cine-types" id="dvCineTypes" role="group"></div>
+                                        <div class="dv-cine-types dv-cine-sides" id="dvCineSides" role="group"></div>
+                                        <button class="dv-nadepop-btn dv-cine-choose" id="dvCineChoose" type="button">
+                                            <span data-i18n="dv.cine.choose">CHOOSE PLAYER</span>
+                                            <b class="dv-cine-choose-n" id="dvCineChooseN"></b>
+                                        </button>
+                                        <div class="dv-cine-count" id="dvCineCount"></div>
+                                        <div class="dv-nadepop-btns">
+                                            <button class="dv-nadepop-btn is-primary" id="dvCineStart" data-i18n="dv.cine.start">START</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="tab-panel">
+                        <div class="plugins-panel">
+                            <div class="panel-header">
+                                <h2 class="panel-title" data-i18n="download.title">CREATE SERVER</h2>
+                                <span class="panel-tag" data-i18n="download.tag">CS2 DEDICATED</span>
+                            </div>
+                            <div class="dl-server-wrap">
+                                <div class="dl-server-status" id="dlServerStatus">
+                                    <span class="status-dot" id="dlStatusDot"></span>
+                                    <span class="dl-status-text" id="dlStatusText" data-i18n="download.checking">Checking…</span>
+                                </div>
+                                <div class="server-upd-banner" id="serverUpdateBanner" style="display:none">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                                    <span class="server-upd-text" data-i18n="download.updated">CS2 has updated since the server was built — rebuild it so it keeps working.</span>
+                                    <button class="server-upd-rebuild" id="serverRebuildBtn" data-i18n="download.rebuild">REBUILD</button>
+                                </div>
+                                <p class="skins-desc" data-i18n="download.desc2">
+                                    Builds a local practice server from your installed CS2 — it links the game
+                                    content you already have (no download, your game stays untouched). Then
+                                    install plugins in the Plugins tab and launch from the Server tab.
+                                </p>
+                                <div class="dl-btn-row">
+                                    <button class="btn btn-launch" id="useExistingBtn">
+                                        <svg class="btn-icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                                        <span data-i18n="download.useExisting">USE MY INSTALLED CS2</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="tab-panel"></div>
+                    <div class="tab-panel">
+                        <div class="settings-panel">
+                            <div class="panel-header">
+                                <h2 class="panel-title" data-i18n="settings.title">SETTINGS</h2>
+                                <span class="panel-tag" data-i18n="settings.tag">PREFERENCES</span>
+                            </div>
+                            <p class="skins-desc" data-i18n="settings.desc">
+                                Local preferences for this launcher. Everything here is stored on your machine only.
+                            </p>
+                            <div class="set-card">
+                                <div class="set-card-head">
+                                    <span class="set-card-title" data-i18n="settings.updates">Updates</span>
+                                    <span class="set-card-sub" data-i18n="settings.updatesSub">The app checks for updates on launch. It downloads only when you accept, and installs on the next restart.</span>
+                                </div>
+                                <div class="set-card-controls">
+                                    <span class="set-upd-status" id="setUpdStatus"></span>
+                                    <button class="btn-check-updates" id="setUpdBtn" hidden></button>
+                                    <a class="set-repo-link" href="https://github.com/Sevelinish/cs2Prak" target="_blank" rel="noopener noreferrer" data-i18n="settings.repo">Project repository ↗</a>
+                                </div>
+                            </div>
+                            <div class="set-card">
+                                <div class="set-card-head">
+                                    <span class="set-card-title" data-i18n="settings.language">Language</span>
+                                    <span class="set-card-sub" data-i18n="settings.languageSub">Interface language for menus and labels.</span>
+                                </div>
+                                <div class="dv-seg set-seg" id="setLangSeg" role="radiogroup" aria-label="Language">
+                                    <button class="dv-seg-btn" data-lang="en" role="radio" aria-checked="true">EN</button>
+                                    <button class="dv-seg-btn" data-lang="ru" role="radio" aria-checked="false">RU</button>
+                                </div>
+                            </div>
+                            <div class="set-card set-card-fk">
+                                <div class="set-card-head">
+                                    <span class="set-card-title" data-i18n="fk.title">FACEIT API KEY</span>
+                                    <span class="set-card-sub" data-i18n="fk.desc"></span>
+                                </div>
+                                <div class="set-card-controls fk" id="faceitKeyCard">
+                                    <div class="fk-head">
+                                        <span class="fk-state" id="fkState" data-i18n="fk.checking">CHECKING…</span>
+                                    </div>
+                                    <div class="fk-row">
+                                        <input class="fk-input" id="fkInput" type="password" spellcheck="false"
+                                               autocomplete="off" data-i18n="fk.ph" data-i18n-attr="placeholder"
+                                               placeholder="Paste your server-side API key">
+                                        <button class="fk-btn" id="fkSave" data-i18n="fk.save">SAVE</button>
+                                        <button class="fk-btn fk-btn-ghost" id="fkClear" data-i18n="fk.clear">CLEAR</button>
+                                    </div>
+                                    <div class="fk-foot">
+                                        <a class="fk-link" id="fkLink" href="https://developers.faceit.com/apps" target="_blank" rel="noopener noreferrer">
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                                            <span data-i18n="fk.link">How to create a key</span>
+                                        </a>
+                                        <span class="fk-msg" id="fkMsg"></span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="set-card">
+                                <div class="set-card-head">
+                                    <span class="set-card-title" data-i18n="settings.pencil">Demo pencil</span>
+                                    <span class="set-card-sub" data-i18n="settings.pencilSub">Draw on the demo viewer. In the viewer press C to switch between drawing and camera, Z to clear.</span>
+                                </div>
+                                <div class="set-card-controls">
+                                    <label class="dv-switch set-switch">
+                                        <span data-i18n="settings.pencilToggle">Enable drawing (C / Z)</span>
+                                        <input type="checkbox" id="setPencilToggle">
+                                        <span class="dv-switch-track" aria-hidden="true"></span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="set-card">
+                                <div class="set-card-head">
+                                    <span class="set-card-title" data-i18n="settings.tutorial">Tutorial</span>
+                                    <span class="set-card-sub" data-i18n="settings.tutorialSub">A short guided tour of the key controls, shown the first time you open the app.</span>
+                                </div>
+                                <div class="set-card-controls">
+                                    <label class="dv-switch set-switch">
+                                        <span data-i18n="settings.tutorialToggle">Show tutorial on launch</span>
+                                        <input type="checkbox" id="setTutorialToggle" checked>
+                                        <span class="dv-switch-track" aria-hidden="true"></span>
+                                    </label>
+                                    <button class="btn-check-updates" id="setRestartTour" data-i18n="settings.tutorialRestart">RESTART TUTORIAL</button>
+                                </div>
+                            </div>
+                            <div class="set-card">
+                                <div class="set-card-head">
+                                    <span class="set-card-title" data-i18n="settings.theme">Theme</span>
+                                    <span class="set-card-sub" data-i18n="settings.themeSub">Soft colour palettes — pick the one you like.</span>
+                                </div>
+                                <div class="dv-seg set-seg" id="setThemeSeg" role="radiogroup" aria-label="Theme">
+                                    <button class="dv-seg-btn on" data-theme="dark" role="radio" aria-checked="true" data-i18n="settings.themeDark">Dark</button>
+                                    <button class="dv-seg-btn" data-theme="rose" role="radio" aria-checked="false" data-i18n="settings.themePink">Soft Pink</button>
+                                    <button class="dv-seg-btn" data-theme="slate" role="radio" aria-checked="false" data-i18n="settings.themeBlue">Blue-Gray</button>
+                                </div>
+                                <p class="set-locked-note" data-i18n="settings.themeLocked">Alternate palettes are being reworked. Only the dark theme ships for now.</p>
+                            </div>
+                            <div class="set-card set-card-danger" id="uninstallCard">
+                                <div class="set-card-head">
+                                    <span class="set-card-title" data-i18n="uninst.title">UNINSTALL</span>
+                                    <span class="set-card-sub" data-i18n="uninst.sub">Removes the launcher, the practice server, its plugins and every file this app created. Your own CS2 in Steam is not touched.</span>
+                                </div>
+                                <div class="set-card-controls">
+                                    <button class="btn-check-updates unin-danger" id="uninstStart" data-i18n="uninst.start">UNINSTALL…</button>
+                                    <div class="unin-step" id="uninstStep1" hidden>
+                                        <div class="unin-list" id="uninstList"></div>
+                                        <div class="unin-total">
+                                            <span data-i18n="uninst.frees">Frees</span>
+                                            <b id="uninstTotal">—</b>
+                                        </div>
+                                        <div class="fk-row">
+                                            <button class="btn-check-updates unin-danger" id="uninstNext" data-i18n="uninst.continue">CONTINUE</button>
+                                            <button class="btn-check-updates" id="uninstCancel1" data-i18n="uninst.cancel">CANCEL</button>
+                                        </div>
+                                    </div>
+                                    <div class="unin-step" id="uninstStep2" hidden>
+                                        <p class="unin-prompt" id="uninstPrompt"></p>
+                                        <div class="fk-row">
+                                            <input class="fk-input" id="uninstInput" type="text" spellcheck="false" autocomplete="off">
+                                            <button class="fk-btn unin-danger-solid" id="uninstGo" disabled data-i18n="uninst.go">DELETE EVERYTHING</button>
+                                            <button class="btn-check-updates" id="uninstCancel2" data-i18n="uninst.cancel">CANCEL</button>
+                                        </div>
+                                    </div>
+                                    <pre class="unin-log" id="uninstLog" hidden></pre>
+                                    <span class="fk-msg" id="uninstMsg"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="tab-panel">
+                        <div id="statsRoot" class="stats-root"></div>
+                    </div>
+                    <div class="tab-panel">
+                        <div id="advRoot" class="adv-root"></div>
+                    </div>
+                </div>
+            </div>
+        </main>
+        <footer class="footer">
+            <div class="footer-inner">
+                <div class="launch-info" id="launchInfo">
+                    <span id="launchInfoText">Select a map to launch the server</span>
+                </div>
+                <button class="btn btn-launch" id="launchBtn" disabled>
+                    <svg class="btn-icon" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                    <span data-i18n="server.launch">LAUNCH SERVER</span>
+                </button>
+            </div>
+        </footer>
+    </div>
+    <div class="toast" id="toast"></div>
+    <div class="au-backdrop dv-pchoose" id="dvPChoose">
+        <div class="dv-pchoose-in" role="dialog" aria-modal="true" aria-labelledby="dvPChooseTitle">
+            <div class="dv-pchoose-head">
+                <span class="dv-pchoose-t" id="dvPChooseTitle" data-i18n="dv.cine.chooseTitle">WHOSE LINEUPS</span>
+                <span class="dv-pchoose-hint" data-i18n="dv.cine.chooseHint">Click a player · shift-click to add more</span>
+                <button class="dv-nadepop-x" id="dvPChooseX" aria-label="Close">✕</button>
+            </div>
+            <div class="dv-pchoose-grid" id="dvPChooseGrid"></div>
+            <div class="dv-pchoose-foot">
+                <button class="dv-nadepop-btn" id="dvPChooseAll" type="button" data-i18n="dv.cine.chooseAll">EVERYONE</button>
+                <button class="dv-nadepop-btn is-primary" id="dvPChooseOk" type="button" data-i18n="dv.cine.chooseOk">DONE</button>
+            </div>
+        </div>
+    </div>
+
+    
+    <div class="au-backdrop" id="trayHintBackdrop">
+        <div class="au-modal" role="dialog" aria-modal="true" aria-labelledby="trayHintTitle">
+            <div class="au-h" id="trayHintTitle" data-i18n="tray.title">STILL RUNNING</div>
+            <div class="au-text" data-i18n="tray.text">Closing the window leaves the practice server running. Reopen it from the tray icon next to the clock — that menu is also where Quit lives.</div>
+            <div class="au-btns">
+                <button class="au-btn" id="trayHintQuit" data-i18n="tray.quit">QUIT COMPLETELY</button>
+                <button class="au-btn au-primary" id="trayHintGo" data-i18n="tray.go">GOT IT</button>
+            </div>
+        </div>
+    </div>
+    <div class="au-backdrop" id="appUpdBackdrop">
+        <div class="au-modal" role="dialog" aria-modal="true" aria-labelledby="appUpdTitle">
+            <div class="au-h" id="appUpdTitle" data-i18n="update.title">UPDATE AVAILABLE</div>
+            <div class="au-text" id="appUpdText"></div>
+            <div class="au-notes" id="appUpdNotes" hidden></div>
+            <div class="au-btns">
+                <button class="au-btn" id="appUpdLater" data-i18n="update.later">LATER</button>
+                <button class="au-btn au-primary" id="appUpdGo" data-i18n="update.download">DOWNLOAD &amp; INSTALL</button>
+            </div>
+        </div>
+    </div>
+    <div class="au-backdrop" id="skinsLockBackdrop">
+        <div class="au-modal" role="dialog" aria-modal="true" aria-labelledby="skinsLockTitle">
+            <div class="au-h" id="skinsLockTitle" data-i18n="skinsLock.title">SKINS LOCKED</div>
+            <div class="au-text" id="skinsLockText" data-i18n="skinsLock.text">Skins need the CS2 server and the WeaponPaints plugin installed first.</div>
+            <div class="au-btns">
+                <button class="au-btn" id="skinsLockClose" data-i18n="skinsLock.close">CLOSE</button>
+                <button class="au-btn au-primary" id="skinsLockGo" data-i18n="skinsLock.download">DOWNLOAD SERVER</button>
+            </div>
+        </div>
+    </div>
+    <div class="au-backdrop" id="faceitLockBackdrop">
+        <div class="au-modal" role="dialog" aria-modal="true" aria-labelledby="flockTitle">
+            <div class="au-h" id="flockTitle" data-i18n="flock.title">ANALYTICS LOCKED</div>
+            <div class="au-text" data-i18n="flock.text"></div>
+            <div class="fk-row flock-row">
+                <input class="fk-input" id="flockInput" type="password" spellcheck="false"
+                       autocomplete="off" data-i18n="fk.ph" data-i18n-attr="placeholder"
+                       placeholder="Paste your server-side API key">
+            </div>
+            <div class="fk-foot">
+                <a class="fk-link" href="https://developers.faceit.com/apps" target="_blank" rel="noopener noreferrer">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                    <span data-i18n="fk.link">How to create a key</span>
+                </a>
+                <span class="fk-msg" id="flockMsg"></span>
+            </div>
+            <div class="au-btns">
+                <button class="au-btn" id="flockClose" data-i18n="flock.close">CLOSE</button>
+                <button class="au-btn au-primary" id="flockSave" data-i18n="flock.save">UNLOCK</button>
+            </div>
+        </div>
+    </div>
+    <div class="au-backdrop" id="rebuildBackdrop">
+        <div class="au-modal" role="dialog" aria-modal="true" aria-labelledby="rebuildTitle">
+            <div class="au-h" id="rebuildTitle" data-i18n="rebuild.title">REBUILD SERVER</div>
+            <div class="au-text" data-i18n="rebuild.text">CS2 has updated. First update the game in Steam to the latest version (launch CS2 once, or let Steam finish updating). When it's up to date, rebuild — this unbinds the old game links and re-links the server to the new files. Your installed plugins and configs are kept.</div>
+            <div class="au-btns">
+                <button class="au-btn" id="rebuildCancel" data-i18n="rebuild.cancel">CANCEL</button>
+                <button class="au-btn au-primary" id="rebuildGo" data-i18n="rebuild.go">REBUILD NOW</button>
+            </div>
+        </div>
+    </div>
+    <div class="au-backdrop" id="recBindsBackdrop">
+        <div class="au-modal au-modal-wide" role="dialog" aria-modal="true" aria-labelledby="recBindsTitle">
+            <div class="au-h" id="recBindsTitle" data-i18n="recBinds.title">PRACTICE BINDS</div>
+            <div class="au-text" data-i18n="recBinds.sub">Bind these training commands to your own keys, then EXPORT to write sBinds.cfg (run exec sBinds in CS2). Don't want any? Just close.</div>
+            <div class="rb-list" id="recBindsList"></div>
+            <div class="au-btns">
+                <button class="au-btn" id="recBindsClose" data-i18n="recBinds.close">GOT IT</button>
+                <button class="au-btn au-primary" id="recBindsExport" data-i18n="recBinds.export">EXPORT TO CS2</button>
+            </div>
+        </div>
+    </div>
+    <div id="tourOverlay" hidden>
+        <div class="tour-ring" aria-hidden="true"></div>
+        <div class="tour-tip" role="dialog" aria-modal="true">
+            <span class="tour-arrow" aria-hidden="true"></span>
+            <div class="tour-tip-head">
+                <span class="tour-tip-title"></span>
+                <span class="tour-step-count"></span>
+            </div>
+            <p class="tour-tip-text"></p>
+            <div class="tour-tip-btns">
+                <button class="tour-btn tour-skip" data-tour="skip">Skip</button>
+                <span class="tour-btn-spacer"></span>
+                <button class="tour-btn" data-tour="back">Back</button>
+                <button class="tour-btn tour-next" data-tour="next">Next</button>
+            </div>
+        </div>
+    </div>
+    <div class="sp-backdrop" id="spBackdrop">
+      <div class="sp-modal">
+        <div class="sp-topbar">
+          <div class="sp-topbar-left">
+            <div class="logo-badge" style="font-size:13px;padding:3px 8px;">CS2</div>
+            <span class="sp-title">WEAPON SKINS</span>
+            <span class="sp-steamid" id="spSteamId"></span>
+          </div>
+          <div class="sp-team-toggle">
+            <button class="sp-team-btn active" data-team="3">CT</button>
+            <button class="sp-team-btn" data-team="2">T</button>
+            <button class="sp-team-btn" data-team="both">BOTH</button>
+          </div>
+          <button class="sp-close-btn" id="spCloseBtn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <div class="sp-body">
+          <div class="sp-sidebar">
+            <div class="sp-categories" id="spCategories"></div>
+            <div class="sp-weapon-list" id="spWeaponList"></div>
+          </div>
+          <div class="sp-grid-wrap">
+            <div class="sp-grid-header" id="spGridHeader"></div>
+            <div class="sp-grid" id="spGrid"></div>
+          </div>
+          <div class="sp-preview-panel" id="spPreviewPanel">
+            <div class="sp-preview-empty" id="spPreviewEmpty">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" opacity="0.3"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+              <span>Select a skin to preview</span>
+            </div>
+            <div class="sp-preview-content" id="spPreviewContent" style="display:none">
+              <div class="sp-preview-img-wrap">
+                <img id="spPreviewImg" src="" alt="" class="sp-preview-img">
+              </div>
+              <div class="sp-preview-name" id="spPreviewName"></div>
+              <div class="sp-config">
+                <div class="sp-config-row">
+                  <label class="sp-config-label">WEAR</label>
+                  <div class="sp-wear-wrap">
+                    <input type="range" id="spWearSlider" class="sp-wear-slider"
+                           min="0.0001" max="0.9999" step="0.0001" value="0.01">
+                    <div class="sp-wear-info">
+                      <span class="sp-wear-val" id="spWearVal">0.0100</span>
+                      <span class="sp-wear-cond" id="spWearCond">Factory New</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="sp-config-row">
+                  <label class="sp-config-label">SEED</label>
+                  <input type="number" id="spSeedInput" class="sp-config-input"
+                         min="0" max="1000" value="0" placeholder="0">
+                </div>
+                <div class="sp-config-row">
+                  <label class="sp-config-label">NAME TAG</label>
+                  <input type="text" id="spNametagInput" class="sp-config-input"
+                         maxlength="20" placeholder="Custom name…">
+                </div>
+                <div class="sp-config-row">
+                  <label class="sp-config-label">STATTRAK</label>
+                  <label class="sp-toggle">
+                    <input type="checkbox" id="spStattrakToggle">
+                    <span class="sp-toggle-track"></span>
+                  </label>
+                </div>
+                <div class="sp-config-row" id="spStickerRow">
+                  <label class="sp-config-label">STICKERS</label>
+                  <div class="sp-sticker-slots" id="spStickerSlots"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="sp-footer">
+          <span class="sp-footer-hint" id="spFooterHint"></span>
+          <button class="btn btn-launch" id="spSaveBtn" style="padding:10px 32px;font-size:13px;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            SAVE SKINS
+          </button>
+        </div>
+      </div>
+    </div>
+    <div class="hl-backdrop" id="hlBackdrop">
+      <div class="hl-modal">
+        <div class="hl-head">
+          <div class="hl-head-left">
+            <div class="logo-badge" style="font-size:13px;padding:3px 8px;">HLTV</div>
+            <div class="hl-title-wrap">
+              <span class="hl-title" data-i18n="hltv.title">IMPORT PRO LOADOUT</span>
+              <span class="hl-sub" data-i18n="hltv.sub">Paste an HLTV player profile and pull their skins</span>
+            </div>
+          </div>
+          <button class="sp-close-btn" id="hlCloseBtn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <div class="hl-input-row">
+          <input type="text" id="hlUrl" class="hl-input" autocomplete="off" spellcheck="false"
+                 placeholder="https://www.hltv.org/player/7998/s1mple">
+          <button class="hl-import-btn" id="hlImportBtn" data-i18n="hltv.import">IMPORT</button>
+        </div>
+        <div class="hl-status" id="hlStatus"></div>
+        <div class="hl-results" id="hlResults"></div>
+        <div class="hl-foot" id="hlFoot" style="display:none">
+          <span class="hl-foot-hint" data-i18n="hltv.footHint">Click a skin to toggle it</span>
+          <span class="hl-selcount" id="hlSelCount"></span>
+          <button class="hl-apply-btn" id="hlApplyBtn" data-i18n="hltv.apply">APPLY SELECTED</button>
+        </div>
+      </div>
+    </div>
+    <div class="stp-backdrop" id="stpBackdrop" style="display:none">
+      <div class="stp-modal">
+        <div class="stp-header">
+          <span class="stp-title">SLOT <span id="stpSlotNum">1</span> — STICKER</span>
+          <input type="text" id="stpSearch" class="stp-search" placeholder="Search stickers…" autocomplete="off">
+          <button class="stp-clear-btn" id="stpClearBtn">CLEAR</button>
+          <button class="sp-close-btn" id="stpCloseBtn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <div class="stp-grid" id="stpGrid"></div>
+      </div>
+    </div>
+    <div class="upd-backdrop" id="updBackdrop">
+        <div class="upd-modal">
+            <div class="upd-header">
+                <span class="upd-title" id="updTitle">SERVER UPDATE</span>
+                <span class="upd-status-label" id="updStatusLabel">RUNNING…</span>
+                <button class="sp-close-btn" id="updCloseBtn">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            <pre class="upd-log" id="updLog"></pre>
+        </div>
+    </div>
+    <div class="pm-backdrop" id="pmBackdrop">
+        <div class="pm-modal">
+            <div class="pm-header">
+                <span class="pm-title">INSTALLED PLUGINS</span>
+                <button class="sp-close-btn" id="pmCloseBtn">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            <div class="pm-list" id="pmList"></div>
+            <div class="pm-footer">
+                <span class="pm-hint">Toggle loading on/off. Changes apply on the next server start.</span>
+            </div>
+        </div>
+    </div>
+    <script src="/static/i18n.js?v=140"></script>
+    <script src="/static/script.js?v=94"></script>
+    <script src="/static/desktop.js?v=6"></script>
+    <script src="/static/skinpicker.js?v=103"></script>
+    <script src="/static/binds.js?v=101"></script>
+    
+    <div class="imp" id="impPanel" hidden>
+        <div class="imp-head">
+            <span class="imp-title">IMPACT<b>1.4</b></span>
+            <span class="imp-sub" id="impSub"></span>
+            <div class="imp-seg" id="impSide" role="radiogroup" aria-label="Side">
+                <button class="imp-seg-btn on" data-side="1" role="radio" aria-checked="true">CT</button>
+                <button class="imp-seg-btn" data-side="0" role="radio" aria-checked="false">T</button>
+            </div>
+            <button class="imp-x" id="impClose" data-i18n="impact.close" data-i18n-attr="title" title="Close (Esc)">✕</button>
+        </div>
+        <div class="imp-cuts" id="impCuts"></div>
+        <div class="imp-body">
+            <div class="imp-roster" id="impRoster"></div>
+            <div class="imp-stage">
+                <canvas id="impCanvas" width="560" height="560"></canvas>
+                <div class="imp-hud" id="impHud"></div>
+                <div class="imp-strip" id="impMetrics"></div>
+                <div class="imp-scale">
+                    <span class="imp-scale-lab" data-i18n="impact.timeSpent">TIME SPENT</span>
+                    <i class="imp-scale-bar" id="impScaleBar"></i>
+                    <span class="imp-scale-lab" data-i18n="impact.high">HIGH</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="/static/weapons.js?v=116"></script>
+    <script src="/static/impact.js?v=46"></script>
+    <script src="/static/demo.js?v=109"></script>
+    <script src="/static/statistics.js?v=118"></script>
+    <script src="/static/advanced.js?v=119"></script>
+    <script src="/static/tutorial.js?v=101"></script>
+</body>
+</html>

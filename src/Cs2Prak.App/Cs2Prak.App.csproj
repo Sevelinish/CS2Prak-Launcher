@@ -1,0 +1,47 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <UseWindowsForms>true</UseWindowsForms>
+    <RootNamespace>Cs2Prak.App</RootNamespace>
+    <AssemblyName>cs2prak</AssemblyName>
+    <ApplicationIcon>..\..\assets\icon.ico</ApplicationIcon>
+    <!-- pywebview's WinForms backend calls SetProcessDPIAware(), which is system
+         DPI awareness rather than per-monitor. Matching it keeps the window the
+         same physical size, and the page the same apparent size, as the Python
+         build on the same machine. -->
+    <ApplicationHighDpiMode>SystemAware</ApplicationHighDpiMode>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <!-- The WebView2 package ships a WinForms control and a WPF one in the same
+         box. Only the WinForms half is used here, but the WPF half still drags
+         WindowsBase 5.0 into the reference graph and MSBuild reports the clash
+         with the 4.0 in the shared framework. The 4.0 it picks is the right one
+         and the WPF assembly is never loaded, so the notice is noise. -->
+    <MSBuildWarningsAsMessages>$(MSBuildWarningsAsMessages);MSB3277</MSBuildWarningsAsMessages>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2903.40" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Cs2Prak.Core\Cs2Prak.Core.csproj" />
+    <ProjectReference Include="..\Cs2Prak.Server\Cs2Prak.Server.csproj" />
+  </ItemGroup>
+
+  <!-- The frontend, the map thumbnails and the icon ride next to the exe, which
+       is where AppPaths looks for them. Copied rather than embedded so a patch
+       release can replace a .css or a .js without a rebuild — the same thing the
+       PyInstaller one-dir layout bought. -->
+  <ItemGroup>
+    <Content Include="..\..\assets\static\**\*" LinkBase="static\" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\assets\templates\**\*" LinkBase="templates\" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\assets\maps\**\*" LinkBase="maps\" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\assets\icon.ico" LinkBase="" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>
