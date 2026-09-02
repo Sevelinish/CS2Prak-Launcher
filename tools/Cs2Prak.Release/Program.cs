@@ -20,6 +20,22 @@ var version = positional[0].TrimStart('v', 'V');
 var buildDir = Path.GetFullPath(positional.Length > 1 ? positional[1] : "publish");
 var outDir = Path.GetFullPath(positional.Length > 2 ? positional[2] : "release_assets");
 var legacy = flags.Contains("--legacy");
+var fullInstall = flags.Contains("--full");
+var repo = flags.FirstOrDefault(f => f.StartsWith("--repo=", StringComparison.OrdinalIgnoreCase))
+                ?["--repo=".Length..];
+
+if (repo is null && !flags.Contains("--no-marker"))
+{
+    Fail("не указан --repo=владелец/репозиторий");
+    Console.Error.WriteLine("  Сборщик кладёт рядом с exe release.json — он включает");
+    Console.Error.WriteLine("  автообновление и деинсталляцию и говорит лаунчеру, откуда");
+    Console.Error.WriteLine("  брать релизы. Без этого файла собранная копия считает себя");
+    Console.Error.WriteLine("  рабочей папкой разработчика: обновления не проверяются,");
+    Console.Error.WriteLine("  а удаление заблокировано, чтобы не снести исходники.");
+    Console.Error.WriteLine("  Пример: --repo=Sevelinish/cs2Prak");
+    Console.Error.WriteLine("  Собрать заведомо без маркера — --no-marker");
+    return 1;
+}
 
 if (!CheckVersion(version, flags.Contains("--any-version"))) return 1;
 
@@ -41,6 +57,14 @@ if (!File.Exists(depsPath))
 }
 
 if (!CheckSourceVersion(version)) return 1;
+
+if (repo is not null)
+{
+    var marker = new JsonObject { ["repo"] = repo, ["version"] = version };
+    File.WriteAllText(Path.Combine(buildDir, "release.json"),
+                      marker.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+    Console.WriteLine($"Маркер установки: release.json -> {repo}");
+}
 
 var own = OwnAssemblies(depsPath);
 Console.WriteLine($"Сборок вне рантайма .NET: {own.Count}");
@@ -102,6 +126,15 @@ Console.WriteLine($"Релиз {version}: {files.Count} файлов, "
 
 if (!CheckComplete(files.Keys)) return 1;
 
+if (fullInstall)
+{
+    var installer = Path.Combine(outDir, $"cs2prak-{version}-win-x64.zip");
+    ZipFile.CreateFromDirectory(buildDir, installer, CompressionLevel.Optimal,
+                                includeBaseDirectory: false);
+    Console.WriteLine($"  полная установка: {Path.GetFileName(installer)} "
+                    + $"({new FileInfo(installer).Length / 1048576.0:F0} МБ)");
+}
+
 Console.WriteLine();
 Console.WriteLine($"Дальше: создайте на GitHub релиз с тегом {version} "
                 + $"и приложите к нему все файлы из {outDir}");
@@ -120,8 +153,11 @@ static void Usage()
           куда           куда сложить ассеты. По умолчанию: release_assets
 
         Флаги:
+          --repo=X/Y     репозиторий обновлений; кладёт release.json рядом с exe
+          --full         дополнительно собрать архив полной установки
           --legacy       дополнительно разложить каждый файл отдельным ассетом
           --any-version  не проверять формат версии
+          --no-marker    собрать без release.json (обновления работать не будут)
           --help         эта справка
 
         Кладёт в каталог назначения manifest.json и update.zip. Апдейтер скачивает
@@ -211,8 +247,8 @@ static bool IsUpdatable(string relative, HashSet<string> own)
 {
     if (Ends(relative, ".pdb", ".xml")) return false;
 
-    if (relative is "cs2prak.exe" or "cs2prak.deps.json"
-                 or "cs2prak.runtimeconfig.json" or "icon.ico") return true;
+    if (relative is "cs2prak.exe" or "cs2prak.deps.json" or "cs2prak.runtimeconfig.json"
+                 or "release.json" or "icon.ico") return true;
 
     if (relative.StartsWith("static/radars/", StringComparison.Ordinal))
         return relative.EndsWith("/calibration.json", StringComparison.OrdinalIgnoreCase);
