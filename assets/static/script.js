@@ -394,7 +394,10 @@ _tabBtns.forEach(btn => {
         const next = parseInt(btn.dataset.tab);
         if (isNaN(next)) return;
         if (_demoDdMenu) _demoDdMenu.hidden = true;
-        if (next === 1 && !skinsReady) { showSkinsLock(); return; }
+        if (next === 1 && !skinsReady) {
+            checkSkinsReady().then(ready => ready ? btn.click() : showSkinsLock());
+            return;
+        }
         
         
         if ((next === 4 || next === 8 || next === 9) && !faceitReady) {
@@ -434,11 +437,12 @@ function updateSkinsLock() {
     if (b) b.classList.toggle('locked', !skinsReady);
 }
 function checkSkinsReady() {
-    fetch('/api/skins/ready').then(r => r.json()).then(d => {
-        if (!d) return;
+    return fetch('/api/skins/ready').then(r => r.json()).then(d => {
+        if (!d) return skinsReady;
         skinsReady = !!d.ready; skinsDetail = d;
         updateSkinsLock();
-    }).catch(() => {});
+        return skinsReady;
+    }).catch(() => skinsReady);
 }
 const _slBd = document.getElementById('skinsLockBackdrop');
 let faceitReady = false;
@@ -1003,6 +1007,7 @@ async function pollPluginStatus(pluginId) {
         if (!data.running) {
             stopUpdPoll();
             loadPlugins();
+            checkSkinsReady();
             if (data.exitCode === 0) {
                 updStatusLabel.textContent = 'DONE';
                 updStatusLabel.className   = 'upd-status-label done';
