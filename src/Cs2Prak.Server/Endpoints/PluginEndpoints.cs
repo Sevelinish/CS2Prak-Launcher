@@ -63,7 +63,7 @@ public static class PluginEndpoints
         var lookups = PluginCatalog.All.Select(async p =>
         {
             var release = await GitHubReleases.LatestAsync(
-                p.GitHub, TimeSpan.FromSeconds(8), p.GitHubTagPrefix, cts.Token);
+                p.GitHub, TimeSpan.FromSeconds(8), p.GitHubTagPrefix, ct: cts.Token);
             return (p.Id, release?.TagName);
         });
 

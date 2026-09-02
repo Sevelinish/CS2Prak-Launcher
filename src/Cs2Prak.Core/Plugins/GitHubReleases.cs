@@ -20,15 +20,16 @@ public static class GitHubReleases
 
     public static async Task<Release?> LatestAsync(string repo, TimeSpan timeout,
                                                    string? tagPrefix = null,
+                                                   bool byVersion = false,
                                                    CancellationToken ct = default)
     {
-        if (tagPrefix is null)
+        if (tagPrefix is null && !byVersion)
         {
             var one = await GetJsonAsync($"https://api.github.com/repos/{repo}/releases/latest", timeout, ct);
             if (one is JsonObject obj && Parse(obj) is { Assets.Count: > 0 } release) return release;
         }
 
-        var listed = await GetJsonAsync($"https://api.github.com/repos/{repo}/releases?per_page=30", timeout, ct);
+        var listed = await GetJsonAsync($"https://api.github.com/repos/{repo}/releases?per_page=100", timeout, ct);
         if (listed is not JsonArray array) return null;
 
         var stable = new List<(Release Release, string Published)>();
@@ -54,11 +55,17 @@ public static class GitHubReleases
         var pool = stable.Count > 0 ? stable : pre;
         if (pool.Count == 0) return null;
 
-        return pool.OrderByDescending(x => x.Published, StringComparer.Ordinal).First().Release;
+        var ordered = byVersion
+            ? pool.OrderByDescending(x => x.Release.TagName, ReleaseVersion.Comparer)
+                  .ThenByDescending(x => x.Published, StringComparer.Ordinal)
+            : pool.OrderByDescending(x => x.Published, StringComparer.Ordinal);
+
+        return ordered.First().Release;
     }
 
-    public static Release? Latest(string repo, TimeSpan timeout, string? tagPrefix = null) =>
-        LatestAsync(repo, timeout, tagPrefix).GetAwaiter().GetResult();
+    public static Release? Latest(string repo, TimeSpan timeout, string? tagPrefix = null,
+                                  bool byVersion = false) =>
+        LatestAsync(repo, timeout, tagPrefix, byVersion).GetAwaiter().GetResult();
 
     private static async Task<JsonNode?> GetJsonAsync(string url, TimeSpan timeout, CancellationToken ct)
     {

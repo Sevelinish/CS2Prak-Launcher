@@ -2,6 +2,8 @@
 bin/
 obj/
 artifacts/
+/publish/
+/release_assets/
 
 # runtime state the launcher writes next to the exe
 # anchored to the repo root: unanchored, "update/" also swallowed

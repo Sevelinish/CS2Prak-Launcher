@@ -33,23 +33,6 @@ public static partial class Updater
     public static bool IsStaged =>
         UpdateState.Current.staged && File.Exists(ApplyScript);
 
-    private static IReadOnlyList<int> VersionParts(string? v) =>
-        Numbers().Matches(v ?? "").Take(4).Select(m => int.Parse(m.Value)).ToList() is { Count: > 0 } n
-            ? n
-            : [0];
-
-    private static int Compare(string? a, string? b)
-    {
-        var (x, y) = (VersionParts(a), VersionParts(b));
-        for (var i = 0; i < Math.Max(x.Count, y.Count); i++)
-        {
-            var left = i < x.Count ? x[i] : 0;
-            var right = i < y.Count ? y[i] : 0;
-            if (left != right) return left.CompareTo(right);
-        }
-        return 0;
-    }
-
     public static void StartCheck() =>
         new Thread(Check) { IsBackground = true, Name = "update-check" }.Start();
 
@@ -69,12 +52,12 @@ public static partial class Updater
 
         try
         {
-            var release = GitHubReleases.Latest(repo, TimeSpan.FromSeconds(10));
+            var release = GitHubReleases.Latest(repo, TimeSpan.FromSeconds(10), byVersion: true);
             if (release is null) { state.status = "no-release"; return; }
 
             var tag = release.TagName.Trim();
             state.latest = tag;
-            if (Compare(tag, AppInfo.Version) < 0) { state.status = "up-to-date"; return; }
+            if (ReleaseVersion.Compare(tag, AppInfo.Version) < 0) { state.status = "up-to-date"; return; }
 
             var assets = release.Assets.ToDictionary(a => a.Name, StringComparer.Ordinal);
             if (!assets.TryGetValue("manifest.json", out var manifestAsset))
@@ -139,7 +122,7 @@ public static partial class Updater
                 bundleMeta?["sha256"]?.GetValue<string>(),
                 files, assets);
 
-            var sameVersion = Compare(tag, AppInfo.Version) == 0;
+            var sameVersion = ReleaseVersion.Compare(tag, AppInfo.Version) == 0;
 
             state.available = true;
             state.staged = false;
