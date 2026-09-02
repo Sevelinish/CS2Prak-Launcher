@@ -28,7 +28,11 @@ public static partial class Updater
 
     private sealed record FileEntry(string? Sha256, string? Asset);
 
-    public static string? ReleaseRepo() => InstallMarker.ReleaseRepo();
+    public static string? ReleaseRepo()
+    {
+        if (InstallMarker.ReleaseRepo() is { Length: > 0 } configured) return configured;
+        return AppInfo.UpdateRepo is { Length: > 0 } fallback ? fallback : null;
+    }
 
     public static bool IsStaged =>
         UpdateState.Current.staged && File.Exists(ApplyScript);
