@@ -133,7 +133,7 @@ public static partial class Updater
             state.status = "available";
             state.files = changed;
             state.size = size;
-            state.notes = "";
+            state.notes = ReleaseNotes.Plain(release.Body);
             state.message = sameVersion ? "Update available" : $"Update {tag} available";
         }
         catch (Exception e)
@@ -277,19 +277,26 @@ public static partial class Updater
         var pid = Environment.ProcessId;
         var log = Path.Combine(UpdateDir, "robocopy.log");
 
+        var claimed = StagingDir + ".busy";
+
         var lines = new[]
         {
             "@echo off",
             "chcp 65001 >nul",
+            $"move \"{StagingDir}\" \"{claimed}\" >nul 2>&1",
+            "if errorlevel 1 exit /b 0",
             ":waitloop",
             $"tasklist /fi \"PID eq {pid}\" 2>nul | find \"{pid}\" >nul",
             "if not errorlevel 1 ( timeout /t 1 /nobreak >nul & goto waitloop )",
-            $"robocopy \"{StagingDir}\" \"{install}\" /E /NFL /NDL /NJH /NJS /R:2 /W:2 >\"{log}\"",
+            $"robocopy \"{claimed}\" \"{install}\" /E /NFL /NDL /NJH /NJS /R:2 /W:2 >\"{log}\"",
             "if errorlevel 8 goto fail",
+            $"rmdir /s /q \"{claimed}\" >nul 2>&1",
+            $"del /q \"{ApplyScript}\" >nul 2>&1",
             $"start \"\" \"{exe}\"",
             "exit /b 0",
             ":fail",
             $"robocopy \"{BackupDir}\" \"{install}\" /E /NFL /NDL /NJH /NJS /R:1 /W:1 >>\"{log}\"",
+            $"rmdir /s /q \"{claimed}\" >nul 2>&1",
             $"echo Update failed and was rolled back. robocopy log: {log} >\"{ErrorLog}\"",
             $"start \"\" \"{exe}\"",
             "exit /b 1",
@@ -299,9 +306,19 @@ public static partial class Updater
         File.WriteAllText(ApplyScript, string.Join("\r\n", lines) + "\r\n", new UTF8Encoding(false));
     }
 
+    private static readonly Lock Gate = new();
+    private static bool _applied;
+
     public static void ApplyStaged()
     {
         if (!File.Exists(ApplyScript)) return;
+
+        lock (Gate)
+        {
+            if (_applied) return;
+            _applied = true;
+        }
+
         try
         {
             Process.Start(new ProcessStartInfo

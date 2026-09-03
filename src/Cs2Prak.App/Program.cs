@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Cs2Prak.App.Shell;
 using Cs2Prak.Core;
 
@@ -8,6 +9,13 @@ internal static class Program
     [STAThread]
     private static void Main()
     {
+        using var only = new Mutex(true, @"Local\cs2prak_single_instance", out var first);
+        if (!first)
+        {
+            FocusRunningWindow();
+            return;
+        }
+
         Native.LowerOwnPriority();
 
         ApplicationConfiguration.Initialize();
@@ -27,6 +35,24 @@ internal static class Program
 
         var shell = new DesktopShell();
         shell.Start();
+    }
+
+    private static void FocusRunningWindow()
+    {
+        const int Restore = 9;
+
+        foreach (var other in Process.GetProcessesByName("cs2prak"))
+        {
+            using (other)
+            {
+                if (other.Id == Environment.ProcessId) continue;
+                if (other.MainWindowHandle == IntPtr.Zero) continue;
+
+                Native.ShowWindow(other.MainWindowHandle, Restore);
+                Native.SetForegroundWindow(other.MainWindowHandle);
+                return;
+            }
+        }
     }
 
     internal static void OpenUrl(string url)

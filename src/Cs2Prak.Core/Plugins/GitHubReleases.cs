@@ -5,7 +5,7 @@ namespace Cs2Prak.Core.Plugins;
 
 public sealed record ReleaseAsset(string Name, string DownloadUrl, long Size);
 
-public sealed record Release(string TagName, IReadOnlyList<ReleaseAsset> Assets);
+public sealed record Release(string TagName, IReadOnlyList<ReleaseAsset> Assets, string Body);
 
 public static class GitHubReleases
 {
@@ -100,7 +100,7 @@ public static class GitHubReleases
                 assets.Add(new ReleaseAsset(name, url, a["size"]?.GetValue<long>() ?? 0));
             }
         }
-        return new Release(tag, assets);
+        return new Release(tag, assets, rel["body"]?.GetValue<string>()?.Trim() ?? "");
     }
 
     public static ReleaseAsset? PickAsset(PluginDef plugin, Release release, string osPref)

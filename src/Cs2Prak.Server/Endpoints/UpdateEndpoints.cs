@@ -38,8 +38,6 @@ public static class UpdateEndpoints
         var timer = new System.Timers.Timer(600) { AutoReset = false };
         timer.Elapsed += (_, _) =>
         {
-            Cs2ServerProcess.Kill();
-            Updater.ApplyStaged();
             AppLifetime.Shutdown();
         };
         timer.Start();
