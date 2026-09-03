@@ -81,20 +81,6 @@ src/
   Cs2Prak.App/      splash, WebView2 window, tray
 ```
 
-Assets are copied next to the executable at build time, which is where the app
-looks for them. They are copied rather than embedded so a patch release can
-replace a `.css` or a `.js` without a rebuild.
-
-## Releases
-
-Versions run `1.0.01` through `1.0.99`, then `1.1.01`. The number lives in
-`src/Cs2Prak.Core/AppInfo.cs` next to `UpdateRepo`, which tells the launcher where
-to look for updates.
-
-A release carries three assets: the full install archive, an incremental
-`update.zip` and a `manifest.json` of file hashes. The launcher downloads the
-manifest, compares hashes against the local files and fetches only what differs.
-
 ## License
 
 MIT. See [LICENSE](LICENSE).
