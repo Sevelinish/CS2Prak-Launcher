@@ -67,6 +67,12 @@ public static class MySqlSqliteServer
 
         private static readonly HashSet<string> Float = new(StringComparer.Ordinal) { "weapon_wear" };
 
+        private static readonly HashSet<string> Integer = new(StringComparer.Ordinal)
+        {
+            "id", "music_id", "weapon_defindex", "weapon_paint_id", "weapon_seed",
+            "weapon_stattrak_count", "weapon_team",
+        };
+
         private const ushort Utf8 = 33;
         private const ushort Binary = 63;
 
@@ -75,16 +81,29 @@ public static class MySqlSqliteServer
             if (Bool.Contains(name)) return new ResultColumn(name, ColumnType.Tiny, 1, Binary);
             if (Float.Contains(name)) return new ResultColumn(name, ColumnType.Float, 12, Binary);
             if (Text.Contains(name)) return new ResultColumn(name, ColumnType.VarString, 1024, Utf8);
+            if (Integer.Contains(name)) return new ResultColumn(name, ColumnType.Long, 11, Binary);
 
             foreach (var row in rows)
             {
                 var value = row[index];
                 if (value is null) continue;
                 if (value is double or float) return new ResultColumn(name, ColumnType.Double, 22, Binary);
-                if (value is long or int) return new ResultColumn(name, ColumnType.LongLong, 20, Binary);
+                if (value is long or int) return Whole(name, rows, index);
                 break;
             }
             return new ResultColumn(name, ColumnType.VarString, 1024, Utf8);
+        }
+
+        private static ResultColumn Whole(string name, IReadOnlyList<object?[]> rows, int index)
+        {
+            foreach (var row in rows)
+            {
+                if (row[index] is not (long or int)) continue;
+                var value = Convert.ToInt64(row[index]);
+                if (value is > int.MaxValue or < int.MinValue)
+                    return new ResultColumn(name, ColumnType.LongLong, 20, Binary);
+            }
+            return new ResultColumn(name, ColumnType.Long, 11, Binary);
         }
     }
 
