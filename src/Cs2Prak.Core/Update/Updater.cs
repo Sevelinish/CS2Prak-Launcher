@@ -30,8 +30,8 @@ public static partial class Updater
 
     public static string? ReleaseRepo()
     {
-        if (InstallMarker.ReleaseRepo() is { Length: > 0 } configured) return configured;
-        return AppInfo.UpdateRepo is { Length: > 0 } fallback ? fallback : null;
+        if (AppInfo.UpdateRepo is { Length: > 0 } compiled) return compiled;
+        return InstallMarker.ReleaseRepo() is { Length: > 0 } marker ? marker : null;
     }
 
     public static bool IsStaged =>
