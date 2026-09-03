@@ -31,7 +31,7 @@ public static class ServerConfigurator
                 ? JsonNode.Parse(File.ReadAllText(source)) as JsonObject ?? new JsonObject()
                 : new JsonObject();
 
-            if (core["FollowCS2ServerGuidelines"]?.GetValue<bool>() == false) return;
+            if (IsFalse(core["FollowCS2ServerGuidelines"])) return;
 
             core["FollowCS2ServerGuidelines"] = false;
             AppPaths.EnsureDir(Path.GetDirectoryName(target)!);
@@ -49,29 +49,55 @@ public static class ServerConfigurator
 
     private static void PatchValvePolicy(JobLog? log)
     {
+        var target = AppPaths.WeaponPaintsConfig;
+        if (!File.Exists(target)) return;
+
         try
         {
-            if (JsonNode.Parse(File.ReadAllText(AppPaths.WeaponPaintsConfig)) is not JsonObject cfg) return;
+            if (JsonNode.Parse(File.ReadAllText(target)) is not JsonObject cfg) return;
 
-            var changed = false;
-            foreach (var key in cfg.Select(kv => kv.Key).ToList())
-            {
-                if (!key.Contains("valve", StringComparison.OrdinalIgnoreCase) ||
-                    !key.Contains("policy", StringComparison.OrdinalIgnoreCase)) continue;
-                if (cfg[key]?.GetValue<bool>() == false) continue;
+            var cleared = new List<string>();
+            ClearValvePolicy(cfg, "", cleared);
+            if (cleared.Count == 0) return;
 
-                cfg[key] = false;
-                changed = true;
-            }
-
-            if (!changed) return;
-            File.WriteAllText(AppPaths.WeaponPaintsConfig, cfg.ToJsonString(Indented));
-            log?.Add("Set valve policy to false in WeaponPaints.json.");
+            File.WriteAllText(target, cfg.ToJsonString(Indented));
+            log?.Add($"Set {string.Join(", ", cleared)} to false in WeaponPaints.json.");
         }
-        catch (Exception)
+        catch (Exception e)
         {
+            log?.Add($"! Could not write WeaponPaints.json: {e.Message}");
         }
     }
+
+    private static void ClearValvePolicy(JsonNode? node, string path, List<string> cleared)
+    {
+        if (node is JsonObject obj)
+        {
+            foreach (var key in obj.Select(pair => pair.Key).ToList())
+            {
+                var here = path.Length == 0 ? key : $"{path}.{key}";
+
+                if (key.Contains("valve", StringComparison.OrdinalIgnoreCase)
+                    && key.Contains("policy", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (IsFalse(obj[key])) continue;
+                    obj[key] = false;
+                    cleared.Add(here);
+                    continue;
+                }
+
+                ClearValvePolicy(obj[key], here, cleared);
+            }
+        }
+        else if (node is JsonArray array)
+        {
+            for (var i = 0; i < array.Count; i++)
+                ClearValvePolicy(array[i], $"{path}[{i}]", cleared);
+        }
+    }
+
+    private static bool IsFalse(JsonNode? node) =>
+        node is JsonValue value && value.TryGetValue<bool>(out var flag) && !flag;
 
     public static void ConfigureWeaponPaintsDb(JobLog? log = null)
     {
