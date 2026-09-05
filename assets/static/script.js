@@ -1285,6 +1285,8 @@ const PLUGIN_AUTHORS = {
     'WeaponPaints':       'Nereziel',
     'CounterStrikeSharp': 'roflmuffin',
     'Metamod:Source':     'alliedmodders',
+    'TimerHUD':           'Sevelinish',
+    'MovementHUD':        'Sevelinish',
 };
 
 function buildPmRow(p) {

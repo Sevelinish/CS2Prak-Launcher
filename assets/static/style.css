@@ -1143,6 +1143,39 @@ body::before { content: none; }
     text-transform: uppercase;
 }
 
+.btn-plugin-configure {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    background: transparent;
+    border: 1px solid var(--line);
+    border-radius: 0;
+    color: var(--text-secondary);
+    padding: 9px;
+    cursor: pointer;
+    transition: border-color var(--t), color var(--t), background var(--t);
+}
+.btn-plugin-configure svg { display: block; }
+.btn-plugin-configure:hover:not(:disabled) {
+    border-color: var(--accent-dim);
+    color: var(--accent);
+    background: var(--accent-wash);
+}
+.btn-plugin-configure:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-plugin-configure:focus-visible { outline: 1px solid var(--accent); outline-offset: 1px; }
+.btn-plugin-configure-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    border: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    clip-path: inset(50%);
+}
+
 .plugins-menu { position: relative; }
 .plugins-fn-btn { display: inline-flex; align-items: center; gap: 8px; }
 .plugins-fn-btn::after {

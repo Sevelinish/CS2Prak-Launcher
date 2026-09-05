@@ -154,6 +154,28 @@ public static class PluginCatalog
                 ExtractTo = plugins,
                 Preserve = [Path.Combine("WeaponPaints", "lang")],
             },
+            new PluginDef
+            {
+                Id = "timerhud",
+                Name = "TimerHUD",
+                Description = "Run timer under the crosshair for surf and bhop practice",
+                GitHub = "Sevelinish/CS2TimerHUD",
+                Marker = Path.Combine(plugins, @"TimerHUD\TimerHUD.dll"),
+                VersionSrc = VersionSource.Tracker,
+                DependsOn = ["counterstrikesharp"],
+                ExtractTo = Path.Combine(plugins, "TimerHUD"),
+            },
+            new PluginDef
+            {
+                Id = "movementhud",
+                Name = "MovementHUD",
+                Description = "On-screen keystroke indicator for movement practice",
+                GitHub = "Sevelinish/CS2MovementHUD",
+                Marker = Path.Combine(plugins, @"MovementHUD\MovementHUD.dll"),
+                VersionSrc = VersionSource.Tracker,
+                DependsOn = ["counterstrikesharp"],
+                ExtractTo = Path.Combine(plugins, "MovementHUD"),
+            },
         ];
     }
 }
