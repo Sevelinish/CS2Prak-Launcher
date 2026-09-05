@@ -53,6 +53,14 @@ public static partial class BindsGenerator
         [
             new("Settings menu", "!settings", "Open the player settings menu"),
         ]),
+        new BindPlugin("TimerHUD", "timerhud",
+        [
+            new("Timer HUD", "!timerhud", "Toggle the run timer under the crosshair"),
+        ]),
+        new BindPlugin("MovementHUD", "movementhud",
+        [
+            new("Movement HUD", "!hud", "Toggle the on-screen keystroke indicator"),
+        ]),
     ];
 
     public sealed record Generated(int Count, bool Written, string? Path, string Content);

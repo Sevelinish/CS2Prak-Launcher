@@ -291,7 +291,6 @@ public static partial class Updater
             $"robocopy \"{claimed}\" \"{install}\" /E /NFL /NDL /NJH /NJS /R:2 /W:2 >\"{log}\"",
             "if errorlevel 8 goto fail",
             $"rmdir /s /q \"{claimed}\" >nul 2>&1",
-            $"del /q \"{ApplyScript}\" >nul 2>&1",
             $"start \"\" \"{exe}\"",
             "exit /b 0",
             ":fail",
