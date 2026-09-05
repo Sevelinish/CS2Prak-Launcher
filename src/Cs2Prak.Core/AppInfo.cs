@@ -2,7 +2,7 @@ namespace Cs2Prak.Core;
 
 public static class AppInfo
 {
-    public const string Version = "1.1.88";
+    public const string Version = "1.1.89";
     public const string UpdateRepo = "Sevelinish/CS2Prak-Launcher";
 
     public const string WindowTitle = "CS2 Practice Server";
