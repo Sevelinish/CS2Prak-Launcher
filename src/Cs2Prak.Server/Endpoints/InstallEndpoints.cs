@@ -1,5 +1,7 @@
 using System.Diagnostics;
+using System.Text.Json.Serialization;
 using Cs2Prak.Core;
+using Cs2Prak.Core.Uninstall;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -8,9 +10,18 @@ namespace Cs2Prak.Server.Endpoints;
 
 public static class InstallEndpoints
 {
+    private const string RemoveToken = "REMOVE";
+
     private static readonly JobRunner Install = new();
 
     private static readonly JobRunner Update = new();
+
+    private static readonly JobRunner Remove = new();
+
+    public sealed class RemoveBody
+    {
+        [JsonPropertyName("confirm")] public string? Confirm { get; set; }
+    }
 
     public static void Map(IEndpointRouteBuilder app)
     {
@@ -27,6 +38,38 @@ public static class InstallEndpoints
 
         app.MapGet("/api/server/update-check", UpdateCheck);
         app.MapPost("/api/open-csgo", OpenCsgo);
+
+        app.MapGet("/api/server/remove/preview", RemovePreview);
+        app.MapPost("/api/server/remove", RemoveServer);
+        app.MapGet("/api/server/remove/status", () => Status(Remove));
+
+        app.MapGet("/api/server/health", () => Results.Json(new
+        {
+            issues = ServerHealth.Check(repair: false),
+        }));
+    }
+
+    private static IResult RemovePreview() => Results.Json(new
+    {
+        installed = Directory.Exists(AppPaths.ServerRoot),
+        path = AppPaths.ServerRoot,
+        size = Uninstaller.ServerSize(),
+        running = Cs2ServerProcess.IsRunning,
+        confirm = RemoveToken,
+    });
+
+    private static IResult RemoveServer(RemoveBody? body)
+    {
+        if (!Directory.Exists(AppPaths.ServerRoot))
+            return Results.Json(new { ok = false, message = "No server to remove." }, statusCode: 400);
+
+        if (body?.Confirm != RemoveToken)
+            return Results.Json(new { ok = false, message = "Missing confirmation." }, statusCode: 400);
+
+        if (Install.Running)
+            return Results.Json(new { ok = false, message = "Operation already in progress" });
+
+        return Start(Remove, Uninstaller.RemoveServer, "server-remove", "Removal already running");
     }
 
     private static IResult Start(JobRunner runner, Func<JobLog, int> work, string name, string busy) =>

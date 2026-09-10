@@ -155,6 +155,9 @@ launchBtn.addEventListener('click', async () => {
                 setStatus(true);
                 showConnectBar();
                 showToast(`Launched on ${selectedMap.name}`, 'success');
+                (data.health || []).filter(h => h.repaired)
+                    .forEach(h => showToast(h.message, 'success'));
+                showOutdatedPlugins(data.outdated);
             } else {
                 showToast(data.message || 'Failed to launch server', 'error');
             }
@@ -1581,4 +1584,148 @@ pmBackdrop.addEventListener('click', e => { if (e.target === pmBackdrop) pmBackd
     }
 
     document.addEventListener('langchange', () => { render(); validate(); });
+})();
+
+function showOutdatedPlugins(list) {
+    const backdrop = document.getElementById('poBackdrop');
+    const listEl   = document.getElementById('poList');
+    if (!backdrop || !listEl || !Array.isArray(list) || list.length === 0) return;
+
+    listEl.textContent = '';
+    list.forEach(u => {
+        const row = document.createElement('div');
+        row.className = 'po-item';
+
+        const name = document.createElement('i');
+        name.textContent = u.name;
+
+        const local = document.createElement('s');
+        local.textContent = u.local;
+
+        const arrow = document.createElement('em');
+        arrow.textContent = '\u2192';
+
+        const latest = document.createElement('b');
+        latest.textContent = u.latest;
+
+        row.append(name, local, arrow, latest);
+        listEl.appendChild(row);
+    });
+
+    backdrop.classList.add('open');
+}
+
+(function initOutdatedPopup() {
+    const backdrop = document.getElementById('poBackdrop');
+    if (!backdrop) return;
+
+    const close = () => backdrop.classList.remove('open');
+
+    document.getElementById('poCloseBtn').addEventListener('click', close);
+    document.getElementById('poDismiss').addEventListener('click', close);
+    backdrop.addEventListener('click', e => { if (e.target === backdrop) close(); });
+
+    document.getElementById('poGoPlugins').addEventListener('click', () => {
+        close();
+        const btn = document.querySelector('.tab-btn[data-tab="2"]');
+        if (btn) btn.click();
+    });
+})();
+
+(function initServerRemove() {
+    const card = document.getElementById('srvRemoveCard');
+    if (!card) return;
+
+    const startBtn = document.getElementById('srvRemoveStart');
+    const step     = document.getElementById('srvRemoveStep');
+    const sizeEl   = document.getElementById('srvRemoveSize');
+    const goBtn    = document.getElementById('srvRemoveGo');
+    const cancel   = document.getElementById('srvRemoveCancel');
+    const logEl    = document.getElementById('srvRemoveLog');
+    const msg      = document.getElementById('srvRemoveMsg');
+
+    let preview = null;
+
+    const size = b => b >= 1073741824 ? (b / 1073741824).toFixed(2) + ' GB'
+                    : b >= 1048576    ? (b / 1048576).toFixed(1) + ' MB'
+                    : b >= 1024       ? Math.round(b / 1024) + ' KB'
+                    : b + ' B';
+
+    function note(text, bad) {
+        msg.textContent = text || '';
+        msg.classList.toggle('bad', !!bad);
+    }
+
+    function show(open) {
+        startBtn.hidden = open;
+        step.hidden = !open;
+    }
+
+    async function refreshCard() {
+        try {
+            const p = await (await fetch('/api/server/remove/preview')).json();
+            card.hidden = !p.installed;
+            preview = p;
+            sizeEl.textContent = size(p.size || 0);
+        } catch {
+            card.hidden = true;
+        }
+    }
+
+    startBtn.addEventListener('click', async () => {
+        startBtn.disabled = true;
+        await refreshCard();
+        startBtn.disabled = false;
+        if (!preview || !preview.installed) { note(t('srvrm.none')); return; }
+        note('');
+        show(true);
+    });
+
+    cancel.addEventListener('click', () => { show(false); note(''); });
+
+    goBtn.addEventListener('click', async () => {
+        if (!preview) return;
+        goBtn.disabled = true;
+        note(t('srvrm.working'));
+        logEl.hidden = false;
+        logEl.textContent = '';
+        try {
+            const r = await fetch('/api/server/remove', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ confirm: preview.confirm }),
+            });
+            const j = await r.json();
+            if (!j.ok) {
+                goBtn.disabled = false;
+                note(j.message || t('srvrm.failed'), true);
+                return;
+            }
+            poll();
+        } catch {
+            goBtn.disabled = false;
+            note(t('srvrm.noBackend'), true);
+        }
+    });
+
+    function poll() {
+        fetch('/api/server/remove/status').then(r => r.json()).then(s => {
+            if (!s) return;
+            logEl.textContent = (s.log || []).join('\n');
+            logEl.scrollTop = logEl.scrollHeight;
+            if (s.running) { setTimeout(poll, 700); return; }
+
+            goBtn.disabled = false;
+            if (s.exitCode === 0) {
+                note(t('srvrm.done'));
+                show(false);
+                refreshCard();
+                if (typeof checkServerInstalled === 'function') checkServerInstalled();
+            } else {
+                note(t('srvrm.failed'), true);
+            }
+        }).catch(() => { goBtn.disabled = false; note(t('srvrm.noBackend'), true); });
+    }
+
+    refreshCard();
 })();

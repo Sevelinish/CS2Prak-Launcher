@@ -35,7 +35,8 @@ public static class PluginInstaller
         }
 
         log.Add($"Fetching latest release for {plugin.Name}…");
-        var release = GitHubReleases.Latest(plugin.GitHub, TimeSpan.FromSeconds(10), plugin.GitHubTagPrefix)
+        var release = GitHubReleases.Latest(plugin.GitHub, TimeSpan.FromSeconds(10),
+                                            plugin.GitHubTagPrefix, notAfter: Cutoff(plugin, log))
                       ?? throw new InvalidOperationException("GitHub API unreachable or no release with assets.");
 
         var asset = GitHubReleases.PickAsset(plugin, release, osPref)
@@ -64,6 +65,19 @@ public static class PluginInstaller
                     + $"expected — it may still load. ({plugin.Marker})");
 
         return 0;
+    }
+
+    private static DateTimeOffset? Cutoff(PluginDef plugin, JobLog log)
+    {
+        if (plugin.NotNewerThan is not { } id) return null;
+        if (PluginCatalog.Find(id) is not { } pair) return null;
+
+        var release = GitHubReleases.Latest(pair.GitHub, TimeSpan.FromSeconds(10), pair.GitHubTagPrefix);
+        if (release?.Published is not { } published) return null;
+
+        log.Add($"— {plugin.Name} is built against {pair.Name}; taking the newest build "
+                + $"released up to {pair.Name} {release.TagName} so the two still match.");
+        return published;
     }
 
     private static void PostInstall(PluginDef plugin, ReleaseAsset asset, JobLog log)

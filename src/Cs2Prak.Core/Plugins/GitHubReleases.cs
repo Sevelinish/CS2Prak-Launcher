@@ -5,7 +5,8 @@ namespace Cs2Prak.Core.Plugins;
 
 public sealed record ReleaseAsset(string Name, string DownloadUrl, long Size);
 
-public sealed record Release(string TagName, IReadOnlyList<ReleaseAsset> Assets, string Body);
+public sealed record Release(string TagName, IReadOnlyList<ReleaseAsset> Assets, string Body,
+                             DateTimeOffset? Published = null);
 
 public static class GitHubReleases
 {
@@ -21,9 +22,10 @@ public static class GitHubReleases
     public static async Task<Release?> LatestAsync(string repo, TimeSpan timeout,
                                                    string? tagPrefix = null,
                                                    bool byVersion = false,
+                                                   DateTimeOffset? notAfter = null,
                                                    CancellationToken ct = default)
     {
-        if (tagPrefix is null && !byVersion)
+        if (tagPrefix is null && !byVersion && notAfter is null)
         {
             var one = await GetJsonAsync($"https://api.github.com/repos/{repo}/releases/latest", timeout, ct);
             if (one is JsonObject obj && Parse(obj) is { Assets.Count: > 0 } release) return release;
@@ -48,6 +50,8 @@ public static class GitHubReleases
                 continue;
 
             var published = rel["published_at"]?.GetValue<string>() ?? "";
+            if (notAfter is { } cutoff && parsed.Published is { } at && at > cutoff) continue;
+
             var isPre = rel["prerelease"]?.GetValue<bool>() == true;
             (isPre ? pre : stable).Add((parsed, published));
         }
@@ -64,8 +68,8 @@ public static class GitHubReleases
     }
 
     public static Release? Latest(string repo, TimeSpan timeout, string? tagPrefix = null,
-                                  bool byVersion = false) =>
-        LatestAsync(repo, timeout, tagPrefix, byVersion).GetAwaiter().GetResult();
+                                  bool byVersion = false, DateTimeOffset? notAfter = null) =>
+        LatestAsync(repo, timeout, tagPrefix, byVersion, notAfter).GetAwaiter().GetResult();
 
     private static async Task<JsonNode?> GetJsonAsync(string url, TimeSpan timeout, CancellationToken ct)
     {
@@ -100,7 +104,11 @@ public static class GitHubReleases
                 assets.Add(new ReleaseAsset(name, url, a["size"]?.GetValue<long>() ?? 0));
             }
         }
-        return new Release(tag, assets, rel["body"]?.GetValue<string>()?.Trim() ?? "");
+        var published = DateTimeOffset.TryParse(rel["published_at"]?.GetValue<string>(), out var at)
+            ? at
+            : (DateTimeOffset?)null;
+
+        return new Release(tag, assets, rel["body"]?.GetValue<string>()?.Trim() ?? "", published);
     }
 
     public static ReleaseAsset? PickAsset(PluginDef plugin, Release release, string osPref)

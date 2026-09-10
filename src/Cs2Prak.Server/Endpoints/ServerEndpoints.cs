@@ -56,11 +56,21 @@ public static partial class ServerEndpoints
         if (!Cs2ServerProcess.IsValidMapName(map))
             return Results.Json(new { ok = false, message = "Invalid map name" }, statusCode: 400);
 
+        var health = ServerHealth.Check(repair: true);
+        if (health.FirstOrDefault(i => i.fatal) is { } stop)
+            return Results.Json(new { ok = false, message = stop.message, health }, statusCode: 400);
+
         BeforeLaunch?.Invoke();
 
         var error = Cs2ServerProcess.Launch(map);
         return error is null
-            ? Results.Json(new { ok = true, message = $"Server launched on {map}" })
+            ? Results.Json(new
+            {
+                ok = true,
+                message = $"Server launched on {map}",
+                health,
+                outdated = PluginUpdates.Outdated,
+            })
             : Results.Json(new { ok = false, message = error });
     }
 

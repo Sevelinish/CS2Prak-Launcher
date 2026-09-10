@@ -96,18 +96,69 @@ public static partial class Overlay
         var game = SteamLocator.FindExistingCs2Game();
         if (game is null) return false;
 
-        var retail = Path.Combine(game, "csgo");
-        var ours = Path.Combine(AppPaths.Cs2Game, "csgo");
+        if (Directory.Exists(EngineBinDir) && EngineBinIsLink()) return true;
 
-        foreach (var name in new[] { "steam.inf", "pak01_dir.vpk" })
+        foreach (var name in new[]
+                 {
+                     @"csgo\steam.inf",
+                     @"csgo\pak01_dir.vpk",
+                     Path.Combine(EngineBin, @"win64\cs2.exe"),
+                 })
         {
-            var rt = Path.Combine(retail, name);
-            var ov = Path.Combine(ours, name);
+            var rt = Path.Combine(game, name);
+            var ov = Path.Combine(AppPaths.Cs2Game, name);
             if (!File.Exists(rt)) continue;
             if (!File.Exists(ov)) return true;
             if (FileLinks.SameFile(ov, rt) is not true) return true;
         }
         return false;
+    }
+
+    public const string EngineBin = "bin";
+
+    public static string EngineBinDir => Path.Combine(AppPaths.Cs2Game, EngineBin);
+
+    public static bool EngineBinIsLink() => FileLinks.IsLink(EngineBinDir);
+
+    public static bool RepairEngineBin(JobLog? log = null)
+    {
+        var src = SteamLocator.FindExistingCs2Game();
+        if (src is null) return false;
+
+        var dst = EngineBinDir;
+        if (FileLinks.IsLink(dst) && !FileLinks.RemoveLink(dst, out var error))
+        {
+            log?.Add($"! Could not replace {dst} ({error}).");
+            return false;
+        }
+
+        var mirrored = HardLinkTree(Path.Combine(src, EngineBin), dst);
+        log?.Add($"[+] Rebuilt {EngineBin} as {mirrored} hardlinks so the engine "
+                 + "resolves its root inside the server folder.");
+        return File.Exists(AppPaths.Cs2Exe);
+    }
+
+    private static int HardLinkTree(string src, string dst)
+    {
+        AppPaths.EnsureDir(dst);
+        foreach (var dir in Directory.EnumerateDirectories(src, "*", SearchOption.AllDirectories))
+            AppPaths.EnsureDir(Path.Combine(dst, Path.GetRelativePath(src, dir)));
+
+        var mirrored = 0;
+        foreach (var file in Directory.EnumerateFiles(src, "*", SearchOption.AllDirectories))
+        {
+            var target = Path.Combine(dst, Path.GetRelativePath(src, file));
+            if (Path.Exists(target)) continue;
+
+            if (FileLinks.TryHardLink(file, target)) mirrored++;
+            else
+            {
+                try { File.Copy(file, target, overwrite: false); mirrored++; }
+                catch (IOException) { }
+                catch (UnauthorizedAccessException) { }
+            }
+        }
+        return mirrored;
     }
 
     private static bool IsContent(string name)
@@ -146,8 +197,19 @@ public static partial class Overlay
             var link = Path.Combine(dst, entry.Name);
             if (Path.Exists(link)) continue;
 
-            if (FileLinks.IsDirectoryEntry(entry.FullName)) FileLinks.CreateJunction(link, entry.FullName);
-            else if (IsContent(entry.Name)) FileLinks.TryHardLink(entry.FullName, link);
+            if (!FileLinks.IsDirectoryEntry(entry.FullName))
+            {
+                if (IsContent(entry.Name)) FileLinks.TryHardLink(entry.FullName, link);
+            }
+            else if (entry.Name.Equals(EngineBin, StringComparison.OrdinalIgnoreCase))
+            {
+                var mirrored = HardLinkTree(entry.FullName, link);
+                log.Add($"[+] Mirrored {EngineBin} with {mirrored} hardlinks (0 extra disk).");
+            }
+            else
+            {
+                FileLinks.CreateJunction(link, entry.FullName);
+            }
         }
         log.Add("[+] Linked engine + content folders (junctions, 0 extra disk).");
 
@@ -220,8 +282,9 @@ public static partial class Overlay
 
         void Drop(string path)
         {
-            if (FileLinks.RemoveLink(path, out var error)) removed++;
-            else if (error is not null) log.Add($"  ! could not unbind {Path.GetFileName(path)} ({error})");
+            if (FileLinks.RemoveLink(path, out var error)) { removed++; return; }
+            if (error is null && DropMirror(path)) { removed++; return; }
+            if (error is not null) log.Add($"  ! could not unbind {Path.GetFileName(path)} ({error})");
         }
 
         if (Directory.Exists(ourCsgo))
@@ -234,6 +297,15 @@ public static partial class Overlay
 
         log.Add($"[+] Unbound {removed} old links to the game "
                 + "(kept your plugins, configs and gameinfo).");
+    }
+
+    private static bool DropMirror(string path)
+    {
+        if (!FileLinks.IsPlainDirectory(path)) return false;
+        if (!FileLinks.IsUnder(path, AppPaths.ServerRoot)) return false;
+
+        try { Directory.Delete(path, recursive: true); return true; }
+        catch (Exception) { return false; }
     }
 
     public static int Rebuild(JobLog log)

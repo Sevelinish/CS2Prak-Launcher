@@ -136,6 +136,54 @@ public static class Uninstaller
         return total;
     }
 
+    public static long ServerSize() =>
+        Directory.Exists(AppPaths.ServerRoot) ? SizeOnDisk(AppPaths.ServerRoot) : 0;
+
+    public static int RemoveServer(JobLog log)
+    {
+        if (Cs2ServerProcess.Kill())
+        {
+            log.Add("Stopped the running CS2 server.");
+            Thread.Sleep(1500);
+        }
+
+        Overlay.RemoveCssBasePathLink(log);
+
+        if (Directory.Exists(AppPaths.Cs2Game))
+        {
+            log.Add("Unlinking the overlay from your installed CS2…");
+            Overlay.Unbind(log);
+        }
+
+        if (Directory.Exists(AppPaths.ServerRoot))
+        {
+            log.Add($"Removing {AppPaths.ServerRoot}…");
+            Delete(AppPaths.ServerRoot, AppPaths.Root, log);
+        }
+
+        try
+        {
+            if (File.Exists(AppPaths.PluginStatePath))
+            {
+                File.Delete(AppPaths.PluginStatePath);
+                log.Add("[+] Cleared the recorded plugin versions.");
+            }
+        }
+        catch (Exception e)
+        {
+            log.Add($"  ! could not clear {AppPaths.PluginStatePath} ({e.Message})");
+        }
+
+        if (Directory.Exists(AppPaths.ServerRoot))
+        {
+            log.Add("! Some files are still in use. Close CS2 and any open folder, then try again.");
+            return 1;
+        }
+
+        log.Add("[+] Server and every plugin removed. Your CS2 in Steam was not touched.");
+        return 0;
+    }
+
     public static int Run(JobLog log)
     {
         if (Blocked() is { } blocked) throw new InvalidOperationException(blocked);

@@ -35,6 +35,10 @@ public sealed record PluginDef
 
     public bool IsDependency { get; init; }
 
+    public string? NotNewerThan { get; init; }
+
+    public bool SkipUpdateCheck { get; init; }
+
     public string ReleasesUrl => $"https://github.com/{GitHub}/releases";
 
     public bool IsInstalled => File.Exists(Marker);
@@ -69,6 +73,8 @@ public static class PluginCatalog
                 Marker = Path.Combine(addons, @"metamod\bin\win64\metamod.2.cs2.dll"),
                 VersionSrc = VersionSource.Dll,
                 ExtractTo = csgo,
+                NotNewerThan = "counterstrikesharp",
+                SkipUpdateCheck = true,
             },
             new PluginDef
             {

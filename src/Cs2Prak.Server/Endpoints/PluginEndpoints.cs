@@ -33,6 +33,18 @@ public static class PluginEndpoints
         app.MapGet("/api/plugins/{pluginId}/download/status", DownloadStatus);
         app.MapPost("/api/plugins/install-all", InstallAll);
 
+        app.MapGet("/api/plugins/updates", () => Results.Json(new
+        {
+            checking = PluginUpdates.Running,
+            checked_at = PluginUpdates.LastChecked,
+            updates = PluginUpdates.Outdated,
+        }));
+        app.MapPost("/api/plugins/updates/refresh", () =>
+        {
+            PluginUpdates.Refresh();
+            return Results.Json(new { ok = true });
+        });
+
         app.MapGet("/api/plugins/installed", () => Results.Json(InstalledPlugins.List()));
         app.MapPost("/api/plugins/installed/{folder}/toggle", Toggle);
 

@@ -53,7 +53,13 @@ internal static class Services
             if (Directory.Exists(AppPaths.CssBase)) Overlay.EnsureCssBasePathLink();
         };
 
-        Overlay.OnRebuilt = PluginInstaller.ReinstallAfterRebuild;
+        Overlay.OnRebuilt = log =>
+        {
+            PluginInstaller.ReinstallAfterRebuild(log);
+            PluginUpdates.Refresh();
+        };
+
+        PluginUpdates.Start();
 
         Cs2ServerProcess.OnStopped = () => Overlay.RemoveCssBasePathLink();
         AppDomain.CurrentDomain.ProcessExit += (_, _) => Overlay.RemoveCssBasePathLink();
