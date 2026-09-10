@@ -1065,6 +1065,7 @@ async function checkServerInstalled() {
         dlStatusText.textContent = 'Could not check status';
     }
     checkServerUpdate();
+    if (window.refreshServerRemoveCard) window.refreshServerRemoveCard();
 }
 
 async function checkServerUpdate() {
@@ -1645,6 +1646,7 @@ function showOutdatedPlugins(list) {
     const msg      = document.getElementById('srvRemoveMsg');
 
     let preview = null;
+    let wasInstalled = null;
 
     const size = b => b >= 1073741824 ? (b / 1073741824).toFixed(2) + ' GB'
                     : b >= 1048576    ? (b / 1048576).toFixed(1) + ' MB'
@@ -1667,6 +1669,15 @@ function showOutdatedPlugins(list) {
             card.hidden = !p.installed;
             preview = p;
             sizeEl.textContent = size(p.size || 0);
+
+            if (wasInstalled !== null && p.installed !== wasInstalled) {
+                show(false);
+                note('');
+                logEl.hidden = true;
+                logEl.textContent = '';
+                goBtn.disabled = false;
+            }
+            wasInstalled = p.installed;
         } catch {
             card.hidden = true;
         }
@@ -1717,15 +1728,15 @@ function showOutdatedPlugins(list) {
 
             goBtn.disabled = false;
             if (s.exitCode === 0) {
-                note(t('srvrm.done'));
                 show(false);
-                refreshCard();
-                if (typeof checkServerInstalled === 'function') checkServerInstalled();
+                showToast(t('srvrm.done'), 'success');
+                checkServerInstalled();
             } else {
                 note(t('srvrm.failed'), true);
             }
         }).catch(() => { goBtn.disabled = false; note(t('srvrm.noBackend'), true); });
     }
 
+    window.refreshServerRemoveCard = refreshCard;
     refreshCard();
 })();

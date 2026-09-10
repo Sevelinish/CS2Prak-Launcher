@@ -1032,11 +1032,17 @@ body::before { content: none; }
 .plugins-toolbar {
     display: flex;
     align-items: center;
-    justify-content: space-between;
     gap: 12px;
     margin: 18px 0;
 }
-.plugins-hint { font-size: 12px; color: var(--text-muted); font-family: var(--font-mono); }
+.plugins-hint {
+    flex: 1 1 auto;
+    min-width: 0;
+    text-align: right;
+    font-size: 12px;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+}
 
 .plugins-list { display: flex; flex-direction: column; gap: 8px; }
 
