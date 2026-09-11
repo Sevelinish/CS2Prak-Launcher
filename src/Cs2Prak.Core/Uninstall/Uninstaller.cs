@@ -73,7 +73,7 @@ public static class Uninstaller
 
     private static IEnumerable<string> ProgramFiles(HashSet<string> alreadyNamed)
     {
-        string[] extensions = [".exe", ".dll", ".pdb", ".json", ".xml", ".ico", ".config"];
+        string[] extensions = [".exe", ".dll", ".pdb", ".json", ".xml", ".ico", ".config", ".log"];
         IEnumerable<string> files;
         try { files = Directory.EnumerateFiles(AppPaths.Root); }
         catch (Exception) { yield break; }

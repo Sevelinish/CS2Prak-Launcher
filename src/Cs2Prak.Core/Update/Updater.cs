@@ -153,6 +153,7 @@ public static partial class Updater
         {
             state.status = "downloading";
             DeleteTree(StagingDir);
+            ClearStaleClaim();
 
             if (pending.BundleUrl is not null)
             {
@@ -270,14 +271,19 @@ public static partial class Updater
         }
     }
 
+    private static void ClearStaleClaim() => DeleteTree(StagingDir + ".busy");
+
     internal static void WriteApplyScript(List<string> relatives)
     {
         var install = AppPaths.Root;
         var exe = Environment.ProcessPath ?? Path.Combine(install, "cs2prak.exe");
         var pid = Environment.ProcessId;
         var log = Path.Combine(UpdateDir, "robocopy.log");
+        var tag = _pending?.Tag ?? "the new version";
 
         var claimed = StagingDir + ".busy";
+        ClearStaleClaim();
+        try { File.Delete(ErrorLog); } catch (Exception) { }
 
         var lines = new[]
         {
@@ -289,14 +295,16 @@ public static partial class Updater
             $"tasklist /fi \"PID eq {pid}\" 2>nul | find \"{pid}\" >nul",
             "if not errorlevel 1 ( timeout /t 1 /nobreak >nul & goto waitloop )",
             $"robocopy \"{claimed}\" \"{install}\" /E /NFL /NDL /NJH /NJS /R:2 /W:2 >\"{log}\"",
-            "if errorlevel 8 goto fail",
+            "set RC=%ERRORLEVEL%",
+            "if %RC% GEQ 8 goto fail",
             $"rmdir /s /q \"{claimed}\" >nul 2>&1",
+            $"del /f /q \"{ErrorLog}\" >nul 2>&1",
             $"start \"\" \"{exe}\"",
             "exit /b 0",
             ":fail",
             $"robocopy \"{BackupDir}\" \"{install}\" /E /NFL /NDL /NJH /NJS /R:1 /W:1 >>\"{log}\"",
             $"rmdir /s /q \"{claimed}\" >nul 2>&1",
-            $"echo Update failed and was rolled back. robocopy log: {log} >\"{ErrorLog}\"",
+            $"echo Update to {tag} failed: robocopy exit %RC%. Rolled back. Log: {log} >\"{ErrorLog}\"",
             $"start \"\" \"{exe}\"",
             "exit /b 1",
         };
