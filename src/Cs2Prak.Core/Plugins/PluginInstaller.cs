@@ -2,8 +2,9 @@ namespace Cs2Prak.Core.Plugins;
 
 public static class PluginInstaller
 {
+    private const string BackupSuffix = ".cs2prak-keep";
+
     private static string TempDir => Path.Combine(Path.GetTempPath(), "cs2prak_plugins");
-    private static string BackupDir => Path.Combine(Path.GetTempPath(), "cs2prak_pluginbak");
 
     public static readonly string[] OsChoices = ["windows", "linux"];
 
@@ -111,37 +112,49 @@ public static class PluginInstaller
         var root = plugin.ExtractTo;
         AppPaths.EnsureDir(root);
 
-        var backup = Path.Combine(BackupDir, plugin.Id);
-        DeleteTree(backup);
-
         var saved = new List<string>();
         foreach (var relative in plugin.Preserve)
         {
             var source = Path.Combine(root, relative);
+            var aside = source + BackupSuffix;
+
+            if (!Path.Exists(source) && Path.Exists(aside))
+            {
+                Move(aside, source);
+                log.Add($"  · recovered your {relative} from an interrupted install");
+            }
             if (!Path.Exists(source)) continue;
 
-            var target = Path.Combine(backup, relative);
-            AppPaths.EnsureDir(Path.GetDirectoryName(target)!);
-            Move(source, target);
+            DeleteAny(aside);
+            Move(source, aside);
             saved.Add(relative);
             log.Add($"  · kept your {relative}");
         }
 
-        Archives.ExtractSafely(archive, root);
-        log.Add($"[+] Extracted into {root}");
-
-        foreach (var relative in saved)
+        try
         {
-            var source = Path.Combine(backup, relative);
-            var target = Path.Combine(root, relative);
-
-            if (Path.Exists(target)) DeleteAny(target);
-
-            AppPaths.EnsureDir(Path.GetDirectoryName(target)!);
-            Move(source, target);
+            Archives.ExtractSafely(archive, root);
+            log.Add($"[+] Extracted into {root}");
+        }
+        catch (Exception)
+        {
+            foreach (var relative in saved) PutBack(root, relative);
+            throw;
         }
 
-        DeleteTree(backup);
+        foreach (var relative in saved) PutBack(root, relative);
+    }
+
+    private static void PutBack(string root, string relative)
+    {
+        var target = Path.Combine(root, relative);
+        var aside = target + BackupSuffix;
+        if (!Path.Exists(aside)) return;
+
+        if (Path.Exists(target)) DeleteAny(target);
+
+        AppPaths.EnsureDir(Path.GetDirectoryName(target)!);
+        Move(aside, target);
     }
 
     private static void Move(string source, string target)
