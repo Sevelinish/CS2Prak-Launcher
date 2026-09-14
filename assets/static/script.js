@@ -1784,7 +1784,7 @@ function hlRenderProbe() {
         const icon = document.createElement('img');
         icon.className = 'hm-tool-icon';
         icon.alt = name;
-        icon.src = '/api/highlights/tool-icon?name=' + encodeURIComponent(name);
+        icon.src = '/static/tool_icons/' + encodeURIComponent(name.toLowerCase()) + '.png?v=3';
         icon.addEventListener('load', () => {
             if (icon.naturalHeight && icon.naturalWidth / icon.naturalHeight > 1.6) {
                 chip.classList.add('hm-tool-wide');

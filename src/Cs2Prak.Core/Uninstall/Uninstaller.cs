@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text;
+using Cs2Prak.Core.Highlights;
 
 namespace Cs2Prak.Core.Uninstall;
 
@@ -196,6 +197,8 @@ public static class Uninstaller
             Thread.Sleep(1500);
         }
 
+        StopHighlighter(log);
+
         if (Directory.Exists(AppPaths.Cs2Game))
         {
             log.Add("Unlinking the overlay from your installed CS2…");
@@ -225,6 +228,15 @@ public static class Uninstaller
         WriteScript(leftovers, log);
         log.Add("Closing cs2prak — the last files go with it.");
         return 0;
+    }
+
+    private static void StopHighlighter(JobLog log)
+    {
+        if (!HighlighterProcess.IsRunning && !HighlighterInstall.IsInstalled) return;
+
+        log.Add("Stopping HighlighterCS2…");
+        HighlighterClient.Shutdown();
+        Thread.Sleep(1200);
     }
 
     private static void Delete(string path, string? root, JobLog log)

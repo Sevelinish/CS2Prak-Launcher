@@ -60,7 +60,6 @@ public static class HighlightEndpoints
         app.MapGet("/api/highlights/output", () => Call("output.list", new JsonObject(),
                                                         TimeSpan.FromSeconds(30)));
         app.MapGet("/api/highlights/video", Video);
-        app.MapGet("/api/highlights/tool-icon", ToolIcon);
 
         app.MapGet("/api/highlights/config", ReadConfig);
         app.MapPost("/api/highlights/config", WriteConfig);
@@ -119,19 +118,6 @@ public static class HighlightEndpoints
             ?["directory"]?.GetValue<string>();
 
         return _outputRoot is { Length: > 0 } root && FileLinks.IsUnder(full, root);
-    }
-
-    private static readonly string[] IconTools = ["cs2", "hlae", "ffmpeg"];
-
-    private static IResult ToolIcon(HttpRequest request)
-    {
-        var name = request.Query["name"].ToString();
-        if (!IconTools.Contains(name, StringComparer.OrdinalIgnoreCase)) return Results.NotFound();
-
-        if (HighlighterIcons.For(name) is { } png) return Results.File(png, "image/png");
-
-        var bundled = Path.Combine(AppPaths.StaticDir, "tool_icons", name.ToLowerInvariant() + ".png");
-        return File.Exists(bundled) ? Results.File(bundled, "image/png") : Results.NotFound();
     }
 
     private static IResult Video(HttpRequest request)
