@@ -41,6 +41,9 @@ public static class AppPaths
     public static string CssCoreConfig =>
         Path.Combine(CsgoAddons, @"counterstrikesharp\configs\core.json");
 
+    public static string HighlighterDir     => Path.Combine(Root, "highlighter");
+    public static string HighlighterState   => Path.Combine(Root, "highlighter_version.json");
+
     public static string DownloadsDir =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
 

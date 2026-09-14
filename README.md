@@ -1,8 +1,9 @@
 # CS2Prak Launcher
 
 A local practice-server launcher and companion for Counter-Strike 2 on Windows.
-Create a dedicated server, apply weapon skins, manage plugins, generate binds and
-replay your demos in a built-in 2D viewer, all from one desktop window.
+Create a dedicated server, apply weapon skins, manage plugins, generate binds,
+replay your demos in a built-in 2D viewer and record highlights to video, all from
+one desktop window.
 
 The app is a .NET 9 desktop application. The interface is a WebView2 window backed
 by a local web server that only ever listens on loopback (`127.0.0.1:5000`).
@@ -19,8 +20,9 @@ the plugin, so no MySQL or XAMPP install is needed. Skins can also be pulled fro
 an HLTV player profile.
 
 **Plugins.** Installs and updates Metamod:Source, CounterStrikeSharp, MatchZy,
-WeaponPaints, PlayerSettings, MenuManagerCS2 and AnyBaseLibCS2 straight from their
-GitHub releases. Installed plugins can be switched on and off.
+WeaponPaints, PlayerSettings, MenuManagerCS2, AnyBaseLibCS2, TimerHUD and
+MovementHUD straight from their GitHub releases. Installed plugins can be switched
+on and off, and the launcher checks for newer releases in the background.
 
 **Binds.** Binds plugin chat commands to keys and exports `sBinds.cfg`.
 
@@ -34,6 +36,16 @@ utility and buy discipline.
 **Advanced.** Per-player duel analysis, tick by tick: reaction time, crosshair
 placement, first-bullet accuracy, counter-strafe, distance and flash state.
 
+**Highlights.** Turns a demo into video. Pick a demo and a player, choose highlights
+or a grenade type, then tick the rounds you want. Highlights are scored and described
+by what happened in them, so a round reads as "3K, clutch 1v2" or "wallbang, 2K", and
+grenades are listed by where they landed. The recording plays the demo in CS2 through
+HLAE and encodes the clips with ffmpeg, either as separate files or joined into one.
+Finished clips are listed and played back inside the app.
+
+This tab is driven by [HighlighterCS2](https://github.com/Sevelinish/CS2Prak-HighlightMaker),
+a companion tool the launcher installs and configures for you.
+
 The interface is available in English and Russian.
 
 ## Requirements
@@ -44,6 +56,9 @@ The interface is available in English and Russian.
 - A free FACEIT API key to unlock the Analytics tabs (demo viewer, statistics,
   advanced). The rest of the app works without one.
 - Disk space for the dedicated server, which SteamCMD downloads on first use.
+- For the Highlights tab: HighlighterCS2, about 136 MB, installed by the launcher
+  next to itself. It downloads HLAE and ffmpeg the first time you record. CS2 has to
+  be closed while a recording runs, because HLAE takes over the game.
 
 No .NET install is required. Releases ship with the runtime inside.
 
@@ -76,7 +91,7 @@ dotnet publish src/Cs2Prak.App/Cs2Prak.App.csproj -c Release -r win-x64 --self-c
 assets/     frontend (static, templates), map thumbnails, icon
 src/
   Cs2Prak.Core/     paths, Win32, server process, plugins, skins,
-                    MySQL shim, demo parsing, updates, uninstall
+                    MySQL shim, demo parsing, highlights, updates, uninstall
   Cs2Prak.Server/   local web server and API routes
   Cs2Prak.App/      splash, WebView2 window, tray
 ```

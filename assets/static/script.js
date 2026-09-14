@@ -420,6 +420,7 @@ _tabBtns.forEach(btn => {
         }
         if (next === 4 && window.initDemo) window.initDemo();
         if (next === 5) { checkServerInstalled(); checkSkinsReady(); }
+        if (next === 6) initHighlights();
         if (next === 2) checkSkinsReady();
         if (next === 8 && window.initStatistics) window.initStatistics();
         if (next === 9 && window.initAdvanced) window.initAdvanced();
@@ -1740,3 +1741,1031 @@ function showOutdatedPlugins(list) {
     window.refreshServerRemoveCard = refreshCard;
     refreshCard();
 })();
+
+const HL = {
+    status: null,
+    source: 'highlights',
+    kind: 'all',
+    demos: [],
+    loaded: false,
+    busy: false,
+    recording: false,
+    sort: { key: 'round', dir: 'asc' },
+    jobTimer: null,
+};
+
+function hlEl(id) { return document.getElementById(id); }
+
+function hlSetHint(text, bad) {
+    const hint = hlEl('hmHint');
+    if (!hint) return;
+    hint.textContent = text || '';
+    hint.classList.toggle('bad', !!bad);
+}
+
+function hlRenderProbe() {
+    const box = hlEl('hmProbe');
+    if (!box) return;
+    const probe = HL.status && HL.status.probe;
+    box.textContent = '';
+    if (!probe) return;
+
+    const strip = document.createElement('div');
+    strip.className = 'hm-probe-strip';
+
+    (probe.tools || []).forEach(tool => {
+        const name = String(tool.name || '');
+
+        const chip = document.createElement('span');
+        chip.className = 'hm-tool' + (tool.ready ? ' ok' : '');
+        chip.title = name.toUpperCase()
+            + (tool.note ? ' \u2014 ' + tool.note : tool.path ? ' \u2014 ' + tool.path : '');
+
+        const icon = document.createElement('img');
+        icon.className = 'hm-tool-icon';
+        icon.alt = name;
+        icon.src = '/api/highlights/tool-icon?name=' + encodeURIComponent(name);
+        icon.addEventListener('load', () => {
+            if (icon.naturalHeight && icon.naturalWidth / icon.naturalHeight > 1.6) {
+                chip.classList.add('hm-tool-wide');
+            }
+        });
+        icon.addEventListener('error', () => {
+            icon.remove();
+            chip.classList.remove('hm-tool-wide');
+            chip.textContent = name.toUpperCase();
+            chip.classList.add('hm-tool-text');
+        });
+
+        chip.appendChild(icon);
+        strip.appendChild(chip);
+    });
+
+    const note = document.createElement('span');
+    note.className = 'hm-probe-note';
+    note.textContent = probe.ready ? t('hl.ready')
+        : probe.gameRunning ? t('hl.gameRunning')
+        : t('hl.toolsLater');
+    strip.appendChild(note);
+
+    box.appendChild(strip);
+}
+
+function hlRenderDemos() {
+    const select = hlEl('hmDemoSelect');
+    if (!select) return;
+    const previous = select.value;
+    select.textContent = '';
+
+    if (!HL.demos.length) {
+        const option = document.createElement('option');
+        option.value = '';
+        option.textContent = t('hl.noDemos');
+        select.appendChild(option);
+        return;
+    }
+
+    HL.demos.forEach(demo => {
+        const option = document.createElement('option');
+        option.value = demo.path;
+        const mb = Math.round((demo.sizeBytes || 0) / 1048576);
+        option.textContent = demo.name + '  ·  ' + mb + ' MB';
+        select.appendChild(option);
+    });
+
+    if (previous && HL.demos.some(d => d.path === previous)) select.value = previous;
+}
+
+async function hlLoadStatus() {
+    const gate = hlEl('hmGate');
+    const main = hlEl('hmMain');
+    const loading = hlEl('hmLoading');
+
+    const slow = setTimeout(() => {
+        if (!loading) return;
+        loading.hidden = false;
+        if (gate) gate.hidden = true;
+        if (main) main.hidden = true;
+    }, 250);
+
+    try {
+        HL.status = await (await fetch('/api/highlights/status')).json();
+    } catch {
+        HL.status = null;
+    }
+
+    clearTimeout(slow);
+    if (loading) loading.hidden = true;
+
+    const installed = !!(HL.status && HL.status.installed);
+    if (gate) gate.hidden = installed;
+    if (main) main.hidden = !installed;
+    if (installed) {
+        hlRenderProbe();
+        if (HL.status && HL.status.error) hlSetHint(HL.status.error, true);
+    }
+    return installed;
+}
+
+function hlRenderPlayers(players) {
+    const select = hlEl('hmPlayerSelect');
+    const previous = select.value;
+    select.textContent = '';
+
+    const any = document.createElement('option');
+    any.value = '';
+    any.textContent = t('hl.anyPlayer');
+    select.appendChild(any);
+
+    (players || []).forEach(p => {
+        const option = document.createElement('option');
+        option.value = p.steamId64;
+        option.textContent = p.name + '  \u00b7  ' + p.killCount + 'K';
+        select.appendChild(option);
+    });
+
+    if (previous && [...select.options].some(o => o.value === previous)) select.value = previous;
+}
+
+async function hlLoadPlayers() {
+    const demo = hlEl('hmDemoSelect').value;
+    hlRenderPlayers([]);
+    if (!demo) return;
+
+    hlSetHint(t('hl.readingRoster'));
+    try {
+        const res = await fetch('/api/highlights/players', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ demo: demo }),
+        });
+        const r = await res.json();
+        if (!r.ok) { hlSetHint(r.message || t('hl.failed'), true); return false; }
+        hlRenderPlayers(r.data.players);
+        hlSetHint('');
+        return true;
+    } catch {
+        hlSetHint(t('hl.noBackend'), true);
+        return false;
+    }
+}
+
+async function hlLoadDemos() {
+    try {
+        const r = await (await fetch('/api/highlights/demos')).json();
+        HL.demos = (r.ok && r.data && r.data.demos) ? r.data.demos : [];
+    } catch {
+        HL.demos = [];
+    }
+    hlRenderDemos();
+}
+
+function hlParseRounds(text, selection) {
+    const raw = (text || '').trim();
+    if (!raw) return;
+    const range = raw.match(/^(\d+)\s*-\s*(\d+)$/);
+    if (range) {
+        selection.roundRange = { from: +range[1], to: +range[2] };
+        return;
+    }
+    const list = raw.split(/[,\s]+/).map(x => parseInt(x, 10)).filter(x => !isNaN(x));
+    if (list.length) selection.rounds = list;
+}
+
+function hlBuildSelection() {
+    const selection = { order: 'round_asc' };
+
+    const player = hlEl('hmPlayerSelect').value;
+    if (player) selection.players = [player];
+
+    return selection;
+}
+
+const HL_NADE_KINDS = ['smoke', 'flash', 'he', 'molotov', 'decoy'];
+
+function hlSelectedKinds() {
+    return HL.kind === 'all' ? HL_NADE_KINDS.slice() : [HL.kind];
+}
+
+function hlRow(id, cells, keys) {
+    const row = document.createElement('div');
+    row.className = 'hm-item';
+    if (keys) {
+        row.dataset.round = keys.round;
+        row.dataset.value = keys.value;
+    }
+
+    const pick = document.createElement('input');
+    pick.type = 'checkbox';
+    pick.className = 'hm-pick';
+    pick.value = id;
+    pick.checked = false;
+    pick.addEventListener('change', hlPickedChanged);
+    row.appendChild(pick);
+
+    cells.forEach(cell => {
+        const span = document.createElement('span');
+        span.className = cell.cls || '';
+        if (cell.icon) {
+            const mark = document.createElement('span');
+            mark.className = 'hm-kind-icon';
+            const url = 'url(/static/weapon_icons/' + cell.icon + '.png)';
+            mark.style.webkitMaskImage = url;
+            mark.style.maskImage = url;
+            mark.title = cell.text;
+            span.appendChild(mark);
+        } else {
+            span.textContent = cell.text;
+        }
+        if (cell.title) span.title = cell.title;
+        row.appendChild(span);
+    });
+    return row;
+}
+
+function hlRenderHighlights(data) {
+    const box = hlEl('hmResults');
+    box.textContent = '';
+
+    hlRenderHead([
+        { key: 'hl.cRound', cls: 'round', sort: 'round' },
+        { key: 'hl.cPlayer', cls: 'who' },
+        { key: 'hl.cWhat', cls: 'head' },
+        { key: 'hl.cScore', cls: 'score', sort: 'value' },
+    ], 'highlights');
+
+    (data.highlights || []).forEach(h => {
+        box.appendChild(hlRow(h.id, [
+            { text: String(h.roundNumber), cls: 'hm-round' },
+            { text: h.player.name, cls: 'hm-who', title: h.player.steamId64 },
+            { text: h.headline, cls: 'hm-head' },
+            { text: Math.round(h.score), cls: 'hm-score' },
+        ], { round: h.roundNumber, value: h.score }));
+    });
+}
+
+const HL_NADE_ICON = {
+    smoke: 'smokegrenade',
+    flash: 'flashbang',
+    he: 'highexplosivegrenade',
+    molotov: 'molotov',
+    incendiary: 'incendiarygrenade',
+    decoy: 'decoygrenade',
+};
+
+function hlRenderHead(labels, mode) {
+    const head = hlEl('hmResultsHead');
+    head.textContent = '';
+    head.hidden = false;
+    head.className = 'hm-results-head mode-' + mode;
+    hlEl('hmResults').className = 'hm-results mode-' + mode;
+
+    head.appendChild(document.createElement('span'));
+
+    labels.forEach(label => {
+        if (!label.sort) {
+            const cell = document.createElement('span');
+            cell.className = 'hm-col hm-col-' + label.cls;
+            cell.textContent = t(label.key);
+            head.appendChild(cell);
+            return;
+        }
+
+        const cell = document.createElement('button');
+        cell.type = 'button';
+        cell.className = 'hm-col hm-col-' + label.cls + ' hm-col-sort';
+        cell.dataset.sort = label.sort;
+        cell.textContent = t(label.key);
+
+        const caret = document.createElement('span');
+        caret.className = 'hm-col-caret';
+        cell.appendChild(caret);
+
+        cell.addEventListener('click', () => hlSortBy(label.sort));
+        head.appendChild(cell);
+    });
+
+    hlApplySort();
+}
+
+function hlSortBy(key) {
+    if (HL.sort.key === key) HL.sort.dir = HL.sort.dir === 'asc' ? 'desc' : 'asc';
+    else HL.sort = { key: key, dir: key === 'value' ? 'desc' : 'asc' };
+    hlApplySort();
+}
+
+function hlApplySort() {
+    const box = hlEl('hmResults');
+    if (!box) return;
+
+    const sign = HL.sort.dir === 'asc' ? 1 : -1;
+    const rows = [...box.children];
+
+    rows.sort((a, b) => {
+        const main = (Number(a.dataset[HL.sort.key]) - Number(b.dataset[HL.sort.key])) * sign;
+        return main || (Number(a.dataset.round) - Number(b.dataset.round));
+    });
+    rows.forEach(row => box.appendChild(row));
+
+    document.querySelectorAll('#hmResultsHead .hm-col-sort').forEach(cell => {
+        const on = cell.dataset.sort === HL.sort.key;
+        cell.classList.toggle('active', on);
+        cell.classList.toggle('desc', on && HL.sort.dir === 'desc');
+    });
+}
+
+function hlRenderGrenades(data) {
+    const box = hlEl('hmResults');
+    box.textContent = '';
+
+    hlRenderHead([
+        { key: 'hl.cRound', cls: 'round', sort: 'round' },
+        { key: 'hl.cPlayer', cls: 'who' },
+        { key: 'hl.cPlace', cls: 'head' },
+        { key: 'hl.cClock', cls: 'k', sort: 'value' },
+        { key: 'hl.cKind', cls: 'score' },
+    ], 'grenades');
+
+    const items = [...(data.grenades || [])].sort((a, b) =>
+        (a.roundNumber - b.roundNumber) || ((a.throwTick || 0) - (b.throwTick || 0)));
+
+    items.forEach(g => {
+        const kind = String(g.kind || '').toLowerCase();
+        box.appendChild(hlRow(g.id, [
+            { text: String(g.roundNumber), cls: 'hm-round' },
+            { text: g.thrower.name, cls: 'hm-who', title: g.thrower.steamId64 },
+            { text: g.landingPlace || '\u2014', cls: 'hm-head' },
+            { text: g.roundClock || '', cls: 'hm-k' },
+            { icon: HL_NADE_ICON[kind], text: kind.toUpperCase(), cls: 'hm-score hm-kind' },
+        ], { round: g.roundNumber, value: g.roundTimeSeconds || 0 }));
+    });
+}
+
+async function hlFind() {
+    const demo = hlEl('hmDemoSelect').value;
+    if (!demo) { hlSetHint(t('hl.pickDemo'), true); return; }
+    if (HL.busy) return;
+
+    HL.busy = true;
+    hlEl('hmFindBtn').disabled = true;
+    hlEl('hmSearching').hidden = false;
+    hlSetHint(t('hl.working'));
+    hlEl('hmResults').textContent = '';
+    hlEl('hmResultsHead').hidden = true;
+
+    const body = { demo: demo, source: HL.source, selection: hlBuildSelection() };
+    if (HL.source === 'grenades') body.kinds = hlSelectedKinds();
+
+    try {
+        const res = await fetch('/api/highlights/find', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+        const r = await res.json();
+        if (!r.ok) {
+            hlSetHint(r.message || t('hl.failed'), true);
+        } else if (HL.source === 'grenades') {
+            hlRenderGrenades(r.data);
+            hlSetHint(r.data.count + ' / ' + r.data.total);
+        } else {
+            hlRenderHighlights(r.data);
+            hlSetHint(r.data.count + ' / ' + r.data.total);
+        }
+        hlPickedChanged();
+        if (document.querySelectorAll('#hmResults .hm-item').length) hlSetHint(t('hl.tickThem'));
+    } catch {
+        hlSetHint(t('hl.noBackend'), true);
+    }
+
+    HL.busy = false;
+    hlEl('hmSearching').hidden = true;
+    hlEl('hmFindBtn').disabled = false;
+}
+
+async function hlUpload(file) {
+    hlSetHint(t('hl.uploading'));
+    try {
+        const res = await fetch('/api/highlights/upload?name=' + encodeURIComponent(file.name), {
+            method: 'POST',
+            body: file,
+        });
+        const r = await res.json();
+        if (!r.ok) { hlSetHint(r.message || t('hl.failed'), true); return; }
+        await hlLoadDemos();
+        hlEl('hmDemoSelect').value = r.path;
+        hlEl('hmResults').textContent = '';
+    hlEl('hmResultsHead').hidden = true;
+        hlPickedChanged();
+        if (await hlLoadPlayers()) hlSetHint(t('hl.added'));
+    } catch {
+        hlSetHint(t('hl.noBackend'), true);
+    }
+}
+
+function hlInstall() {
+    const btn = hlEl('hmInstallBtn');
+    const log = hlEl('hmInstallLog');
+    btn.disabled = true;
+    log.hidden = false;
+    log.textContent = '';
+
+    function pollInstall() {
+        fetch('/api/highlights/install/status').then(r => r.json()).then(async s => {
+            log.textContent = (s.log || []).join('\n');
+            log.scrollTop = log.scrollHeight;
+            if (s.running) { setTimeout(pollInstall, 700); return; }
+
+            btn.disabled = false;
+            if (s.exitCode === 0) {
+                showToast(t('hl.installed'), 'success');
+                if (await hlLoadStatus()) hlLoadDemos();
+            } else {
+                showToast(t('hl.failed'), 'error');
+            }
+        }).catch(() => { btn.disabled = false; });
+    }
+
+    fetch('/api/highlights/install', { method: 'POST' })
+        .then(r => r.json())
+        .then(j => {
+            if (!j.ok) { btn.disabled = false; log.textContent = j.message || ''; return; }
+            pollInstall();
+        })
+        .catch(() => { btn.disabled = false; log.textContent = t('hl.noBackend'); });
+}
+
+async function initHighlights() {
+    if (!HL.loaded) {
+        HL.loaded = true;
+
+        hlEl('hmInstallBtn').addEventListener('click', hlInstall);
+        hlEl('hmRefreshBtn').addEventListener('click', async () => {
+            await hlLoadDemos();
+            hlLoadPlayers();
+        });
+        hlEl('hmDemoSelect').addEventListener('change', () => {
+            hlEl('hmResults').textContent = '';
+    hlEl('hmResultsHead').hidden = true;
+            hlPickedChanged();
+            hlLoadPlayers();
+        });
+        hlEl('hmFindBtn').addEventListener('click', hlFind);
+
+        hlEl('hmUploadInput').addEventListener('change', e => {
+            const file = e.target.files && e.target.files[0];
+            if (file) hlUpload(file);
+            e.target.value = '';
+        });
+
+        hlEl('hmTypeSelect').addEventListener('change', e => {
+            const parts = e.target.value.split(':');
+            HL.source = parts[0];
+            HL.kind = parts[1] || 'all';
+            hlEl('hmResults').textContent = '';
+    hlEl('hmResultsHead').hidden = true;
+            hlPickedChanged();
+            hlSetHint('');
+        });
+
+        hlInitRecording();
+        hlInitExtras();
+        hlDressSelects();
+        document.addEventListener('langchange', hlRenderProbe);
+    }
+
+    if (await hlLoadStatus()) {
+        await hlLoadDemos();
+        hlLoadPlayers();
+        clearTimeout(HL.jobTimer);
+        hlPollJob();
+    }
+}
+
+function hlPickedIds() {
+    return [...document.querySelectorAll('#hmResults .hm-pick:checked')].map(b => b.value);
+}
+
+function hlPickedChanged() {
+    const total = document.querySelectorAll('#hmResults .hm-pick').length;
+    const picked = hlPickedIds().length;
+    const actions = hlEl('hmActions');
+
+    actions.hidden = total === 0;
+    hlEl('hmPicked').textContent = picked + ' / ' + total;
+    hlEl('hmRecordBtn').disabled = picked === 0 || HL.recording;
+    hlEl('hmPreviewBtn').disabled = picked === 0 || HL.recording;
+}
+
+function hlSetAllPicks(on) {
+    document.querySelectorAll('#hmResults .hm-pick').forEach(b => { b.checked = on; });
+    hlPickedChanged();
+}
+
+function hlRecordBody() {
+    const body = {
+        demo: hlEl('hmDemoSelect').value,
+        source: HL.source,
+        selection: { ids: hlPickedIds() },
+    };
+    if (hlEl('hmSingleFile').checked) {
+        body.overrides = { recording: { singleFile: true } };
+    }
+    return body;
+}
+
+async function hlPreview() {
+    if (!hlPickedIds().length) return;
+    hlSetHint(t('hl.planning'));
+    try {
+        const res = await fetch('/api/highlights/preview', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(hlRecordBody()),
+        });
+        const r = await res.json();
+        if (!r.ok) { hlSetHint(r.message || t('hl.failed'), true); return; }
+
+        const s = (r.data.plan && r.data.plan.summary) || {};
+        const minutes = Math.round((s.totalSeconds || 0) / 6) / 10;
+        hlSetHint(t('hl.planIs')
+            .replace('{c}', s.clipCount || 0)
+            .replace('{m}', minutes));
+    } catch {
+        hlSetHint(t('hl.noBackend'), true);
+    }
+}
+
+function hlRenderJob(job) {
+    const box = hlEl('hmJob');
+    if (!job || !job.jobId) { box.hidden = true; return; }
+    box.hidden = false;
+
+    const done = job.state === 'succeeded' || job.state === 'failed' || job.state === 'cancelled';
+    HL.recording = !done;
+
+    const stage = job.state === 'queued' ? 0 : job.stage;
+    hlEl('hmJobStage').textContent = job.state === 'queued'
+        ? t('hl.queued')
+        : stage + ' / ' + job.total;
+
+    hlEl('hmJobTitle').textContent =
+        job.state === 'succeeded' ? t('hl.doneN').replace('{n}', job.clips.length)
+        : job.state === 'failed' ? (job.error || t('hl.failed'))
+        : job.state === 'cancelled' ? t('hl.cancelled')
+        : job.title || '';
+
+    const pct = job.state === 'succeeded' ? 100 : Math.round((stage / job.total) * 100);
+    const fill = hlEl('hmBarFill');
+    fill.style.width = pct + '%';
+    fill.classList.toggle('failed', job.state === 'failed');
+
+    let detail = job.detail || '';
+    if (!detail && job.clipCount) {
+        detail = t('hl.planIs')
+            .replace('{c}', job.clipCount)
+            .replace('{m}', Math.round((job.totalSeconds || 0) / 6) / 10);
+    }
+    hlEl('hmJobDetail').textContent = detail;
+
+    const clips = hlEl('hmJobClips');
+    clips.textContent = '';
+    (job.clips || []).forEach(clip => {
+        const line = document.createElement('span');
+        line.className = 'hm-clip';
+        line.textContent = clip.name;
+        line.title = clip.path;
+        clips.appendChild(line);
+    });
+
+    hlEl('hmCancelBtn').hidden = done;
+    hlEl('hmRevealBtn').hidden = job.state !== 'succeeded';
+    hlEl('hmRecordBtn').disabled = !done || !hlPickedIds().length;
+    hlEl('hmPreviewBtn').disabled = !done || !hlPickedIds().length;
+}
+
+async function hlPollJob() {
+    try {
+        const job = await (await fetch('/api/highlights/job')).json();
+        hlRenderJob(job);
+        if (job.state === 'queued' || job.state === 'running') {
+            HL.jobTimer = setTimeout(hlPollJob, 1000);
+            return;
+        }
+        if (job.state === 'succeeded') showToast(t('hl.doneN').replace('{n}', job.clips.length), 'success');
+        if (job.state === 'failed') showToast(job.error || t('hl.failed'), 'error');
+    } catch {
+        HL.jobTimer = setTimeout(hlPollJob, 3000);
+    }
+}
+
+async function hlRecord() {
+    if (HL.recording || !hlPickedIds().length) return;
+
+    hlEl('hmRecordBtn').disabled = true;
+    hlSetHint(t('hl.submitting'));
+
+    try {
+        const res = await fetch('/api/highlights/record', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(hlRecordBody()),
+        });
+        const r = await res.json();
+        if (!r.ok) {
+            hlSetHint(r.message || t('hl.failed'), true);
+            hlEl('hmRecordBtn').disabled = false;
+            return;
+        }
+        hlSetHint('');
+        HL.recording = true;
+        hlRenderJob(r.job);
+        clearTimeout(HL.jobTimer);
+        hlPollJob();
+    } catch {
+        hlSetHint(t('hl.noBackend'), true);
+        hlEl('hmRecordBtn').disabled = false;
+    }
+}
+
+async function hlCancel() {
+    hlEl('hmCancelBtn').disabled = true;
+    try {
+        const r = await (await fetch('/api/highlights/cancel', { method: 'POST' })).json();
+        if (r.job) hlRenderJob(r.job);
+    } catch { }
+    hlEl('hmCancelBtn').disabled = false;
+}
+
+async function hlReveal() {
+    try {
+        await fetch('/api/highlights/reveal', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ demo: hlEl('hmDemoSelect').value }),
+        });
+    } catch { }
+}
+
+function hlInitRecording() {
+    hlEl('hmAllBtn').addEventListener('click', () => hlSetAllPicks(true));
+    hlEl('hmNoneBtn').addEventListener('click', () => hlSetAllPicks(false));
+    hlEl('hmPreviewBtn').addEventListener('click', hlPreview);
+    hlEl('hmRecordBtn').addEventListener('click', hlRecord);
+    hlEl('hmCancelBtn').addEventListener('click', hlCancel);
+    hlEl('hmRevealBtn').addEventListener('click', hlReveal);
+}
+
+function hlSwitchView(view) {
+    document.querySelectorAll('.hm-subtab').forEach(b => {
+        const on = b.dataset.view === view;
+        b.classList.toggle('active', on);
+        b.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    hlEl('hmViewFind').hidden = view !== 'find';
+    hlEl('hmViewMine').hidden = view !== 'mine';
+    if (view !== 'mine') hlCloseVideo();
+    if (view === 'mine') hlLoadMine();
+}
+
+function hlSize(bytes) {
+    return bytes >= 1073741824 ? (bytes / 1073741824).toFixed(2) + ' GB'
+         : bytes >= 1048576 ? (bytes / 1048576).toFixed(1) + ' MB'
+         : Math.round(bytes / 1024) + ' KB';
+}
+
+function hlCloseVideo() {
+    const el = hlEl('hmVideo');
+    if (!el) return;
+    el.pause();
+    el.removeAttribute('src');
+    el.load();
+    hlEl('hmPlayerBox').hidden = true;
+    hlEl('hmVideoName').textContent = '';
+    HL.playing = null;
+    document.querySelectorAll('#hmMineList .hm-clip-row.playing')
+        .forEach(r => r.classList.remove('playing'));
+}
+
+function hlPlayVideo(video, row) {
+    if (HL.playing === video.path) { hlCloseVideo(); return; }
+
+    document.querySelectorAll('#hmMineList .hm-clip-row.playing')
+        .forEach(r => r.classList.remove('playing'));
+    if (row) row.classList.add('playing');
+
+    HL.playing = video.path;
+    hlEl('hmPlayerBox').hidden = false;
+    hlEl('hmVideoName').textContent = video.name;
+
+    const el = hlEl('hmVideo');
+    el.src = '/api/highlights/video?path=' + encodeURIComponent(video.path);
+    el.play().catch(() => { });
+    hlEl('hmPlayerBox').scrollIntoView({ block: 'nearest' });
+}
+
+async function hlLoadMine() {
+    const list = hlEl('hmMineList');
+    const hint = hlEl('hmMineHint');
+    hlCloseVideo();
+    list.textContent = '';
+    hint.textContent = t('hl.working');
+
+    try {
+        const r = await (await fetch('/api/highlights/output')).json();
+        if (!r.ok) { hint.textContent = r.message || t('hl.failed'); return; }
+
+        const videos = r.data.videos || [];
+        hint.textContent = videos.length ? String(videos.length) : t('hl.noClips');
+
+        videos.forEach(video => {
+            const row = document.createElement('button');
+            row.className = 'hm-clip-row';
+            row.type = 'button';
+
+            const name = document.createElement('span');
+            name.className = 'hm-clip-name';
+            name.textContent = video.name;
+
+            const size = document.createElement('span');
+            size.className = 'hm-clip-size';
+            size.textContent = hlSize(video.sizeBytes || 0);
+
+            row.append(name, size);
+            row.addEventListener('click', () => hlPlayVideo(video, row));
+            list.appendChild(row);
+        });
+    } catch {
+        hint.textContent = t('hl.noBackend');
+    }
+}
+
+function hlCfgInput(field, value) {
+    const kind = field.kind;
+
+    if (kind === 'boolean') {
+        const box = document.createElement('input');
+        box.type = 'checkbox';
+        box.className = 'hm-pick';
+        box.checked = value === true;
+        return box;
+    }
+
+    if (kind === 'choice') {
+        const options = String(field.description || '').split(',').map(x => x.trim()).filter(Boolean);
+        if (options.length > 1 && options.every(o => /^[\w-]+$/.test(o))) {
+            const select = document.createElement('select');
+            select.className = 'fk-input';
+            options.forEach(o => {
+                const option = document.createElement('option');
+                option.value = o;
+                option.textContent = o;
+                select.appendChild(option);
+            });
+            select.value = value == null ? options[0] : String(value);
+            return select;
+        }
+    }
+
+    const input = document.createElement('input');
+    input.className = 'fk-input';
+    input.spellcheck = false;
+
+    if (kind === 'integer' || kind === 'number') {
+        input.type = 'number';
+        if (kind === 'integer') input.step = '1';
+        input.value = value == null ? '' : value;
+        return input;
+    }
+
+    if (kind === 'list') {
+        input.type = 'text';
+        input.value = Array.isArray(value) ? value.join(', ') : '';
+        return input;
+    }
+
+    if (kind === 'map') {
+        const area = document.createElement('textarea');
+        area.className = 'fk-input hm-cfg-map';
+        area.spellcheck = false;
+        area.rows = 4;
+        area.value = value == null ? '{}' : JSON.stringify(value, null, 1);
+        return area;
+    }
+
+    input.type = 'text';
+    input.value = value == null ? '' : String(value);
+    return input;
+}
+
+function hlCfgValueAt(config, path) {
+    return path.split('.').reduce((node, key) => (node == null ? undefined : node[key]), config);
+}
+
+function hlCfgRead(field, el) {
+    const kind = field.kind;
+    if (kind === 'boolean') return el.checked;
+    if (kind === 'integer') { const n = parseInt(el.value, 10); return isNaN(n) ? null : n; }
+    if (kind === 'number') { const n = parseFloat(el.value); return isNaN(n) ? null : n; }
+    if (kind === 'list') return el.value.split(',').map(x => x.trim()).filter(Boolean);
+    if (kind === 'map') { try { return JSON.parse(el.value); } catch { return undefined; } }
+    return el.value;
+}
+
+async function hlOpenConfig() {
+    const body = hlEl('hmCfgBody');
+    const hint = hlEl('hmCfgHint');
+    body.textContent = '';
+    hint.textContent = t('hl.working');
+    hlEl('hmCfgBackdrop').classList.add('open');
+
+    let data;
+    try {
+        const r = await (await fetch('/api/highlights/config')).json();
+        if (!r.ok) { hint.textContent = r.message || t('hl.failed'); return; }
+        data = r;
+    } catch {
+        hint.textContent = t('hl.noBackend');
+        return;
+    }
+
+    HL.cfgFields = [];
+    const groups = new Map();
+
+    (data.fields || []).forEach(field => {
+        const group = field.path.split('.')[0];
+        if (!groups.has(group)) groups.set(group, []);
+        groups.get(group).push(field);
+    });
+
+    groups.forEach((fields, group) => {
+        const section = document.createElement('div');
+        section.className = 'hm-cfg-group';
+
+        const title = document.createElement('div');
+        title.className = 'hm-cfg-group-title';
+        title.textContent = group.toUpperCase();
+        section.appendChild(title);
+
+        fields.forEach(field => {
+            const row = document.createElement('label');
+            row.className = 'hm-cfg-field' + (field.kind === 'map' ? ' hm-cfg-field-wide' : '');
+
+            const label = document.createElement('span');
+            label.className = 'hm-cfg-label';
+            label.textContent = field.path.split('.').slice(1).join('.') || field.path;
+            label.title = field.description || '';
+
+            const el = hlCfgInput(field, hlCfgValueAt(data.config, field.path));
+            HL.cfgFields.push({ field: field, el: el });
+
+            row.append(label, el);
+
+            if (field.unit) {
+                const unit = document.createElement('span');
+                unit.className = 'hm-cfg-unit';
+                unit.textContent = field.unit;
+                row.appendChild(unit);
+            }
+
+            section.appendChild(row);
+        });
+
+        body.appendChild(section);
+    });
+
+    hint.textContent = data.configFile || '';
+}
+
+async function hlSaveConfig() {
+    const hint = hlEl('hmCfgHint');
+    const patch = {};
+
+    for (const entry of HL.cfgFields || []) {
+        const value = hlCfgRead(entry.field, entry.el);
+        if (value === undefined) {
+            hint.textContent = t('hl.cfgBad').replace('{p}', entry.field.path);
+            return;
+        }
+        entry.field.path.split('.').reduce((node, key, i, all) => {
+            if (i === all.length - 1) { node[key] = value; return node; }
+            node[key] = node[key] || {};
+            return node[key];
+        }, patch);
+    }
+
+    hlEl('hmCfgSave').disabled = true;
+    hint.textContent = t('hl.working');
+    try {
+        const r = await (await fetch('/api/highlights/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ patch: patch }),
+        })).json();
+        hint.textContent = r.ok ? t('hl.cfgSaved') : (r.message || t('hl.failed'));
+        if (r.ok) showToast(t('hl.cfgSaved'), 'success');
+    } catch {
+        hint.textContent = t('hl.noBackend');
+    }
+    hlEl('hmCfgSave').disabled = false;
+}
+
+function hlInitExtras() {
+    document.querySelectorAll('.hm-subtab').forEach(btn => {
+        btn.addEventListener('click', () => hlSwitchView(btn.dataset.view));
+    });
+
+    hlEl('hmMineRefresh').addEventListener('click', hlLoadMine);
+    hlEl('hmMineFolder').addEventListener('click', hlReveal);
+    hlEl('hmVideoClose').addEventListener('click', hlCloseVideo);
+
+    hlEl('hmConfigBtn').addEventListener('click', hlOpenConfig);
+    hlEl('hmCfgSave').addEventListener('click', hlSaveConfig);
+
+    const close = () => hlEl('hmCfgBackdrop').classList.remove('open');
+    hlEl('hmCfgClose').addEventListener('click', close);
+    hlEl('hmCfgBackdrop').addEventListener('click', e => {
+        if (e.target === hlEl('hmCfgBackdrop')) close();
+    });
+}
+
+function hlDressSelect(select) {
+    if (!select || select.dataset.dressed) return;
+    select.dataset.dressed = '1';
+
+    const wrap = document.createElement('div');
+    wrap.className = 'hm-sel';
+    select.parentNode.insertBefore(wrap, select);
+    wrap.appendChild(select);
+
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'hm-sel-btn';
+
+    const label = document.createElement('span');
+    label.className = 'hm-sel-label';
+
+    const caret = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    caret.setAttribute('class', 'hm-sel-caret');
+    caret.setAttribute('viewBox', '0 0 16 16');
+    caret.setAttribute('aria-hidden', 'true');
+    const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    arrow.setAttribute('d', 'M3 6l5 5 5-5');
+    arrow.setAttribute('fill', 'none');
+    arrow.setAttribute('stroke', 'currentColor');
+    arrow.setAttribute('stroke-width', '2');
+    arrow.setAttribute('stroke-linecap', 'square');
+    caret.appendChild(arrow);
+
+    button.append(label, caret);
+
+    const list = document.createElement('div');
+    list.className = 'hm-sel-list';
+
+    wrap.append(button, list);
+
+    function close() { wrap.classList.remove('open'); }
+
+    function sync() {
+        const chosen = select.selectedOptions[0];
+        label.textContent = chosen ? chosen.textContent : '';
+        button.title = label.textContent;
+        button.disabled = select.options.length === 0;
+
+        list.textContent = '';
+        [...select.options].forEach(option => {
+            const item = document.createElement('button');
+            item.type = 'button';
+            item.className = 'hm-sel-item' + (option.selected ? ' active' : '');
+            item.textContent = option.textContent;
+            item.addEventListener('click', event => {
+                event.preventDefault();
+                event.stopPropagation();
+                select.value = option.value;
+                close();
+                sync();
+                select.dispatchEvent(new Event('change', { bubbles: true }));
+            });
+            list.appendChild(item);
+        });
+    }
+
+    button.addEventListener('click', event => {
+        event.preventDefault();
+        event.stopPropagation();
+        const wasOpen = wrap.classList.contains('open');
+        document.querySelectorAll('.hm-sel.open').forEach(other => other.classList.remove('open'));
+        if (!wasOpen) wrap.classList.add('open');
+    });
+
+    document.addEventListener('click', close);
+    document.addEventListener('keydown', event => { if (event.key === 'Escape') close(); });
+    select.addEventListener('change', sync);
+
+    new MutationObserver(sync).observe(select, { childList: true });
+    sync();
+}
+
+function hlDressSelects() {
+    ['hmDemoSelect', 'hmPlayerSelect', 'hmTypeSelect'].forEach(id => hlDressSelect(hlEl(id)));
+}

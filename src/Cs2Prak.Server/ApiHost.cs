@@ -54,6 +54,7 @@ public static class ApiHost
         FaceitEndpoints.Map(app);
         UninstallEndpoints.Map(app);
         DemoEndpoints.Map(app);
+        HighlightEndpoints.Map(app);
         UpdateEndpoints.Map(app);
 
         return app;

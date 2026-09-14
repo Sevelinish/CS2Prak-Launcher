@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CS2 Practice Server</title>
-    <link rel="stylesheet" href="/static/style.css?v=179">
+    <link rel="stylesheet" href="/static/style.css?v=210">
     
     <script>(function(){try{document.documentElement.removeAttribute('data-theme');localStorage.setItem('cs2prak_theme','dark');}catch(e){}})();</script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -54,6 +54,7 @@
                     <button class="tab-btn"         data-tab="1" data-i18n="tab.skins">SKINS</button>
                     <button class="tab-btn"         data-tab="2" data-i18n="tab.plugins">PLUGINS</button>
                     <button class="tab-btn"         data-tab="3" data-i18n="tab.binds">BINDS</button>
+                    <button class="tab-btn"         data-tab="6" data-i18n="tab.highlights">HIGHLIGHTS<span class="tab-beta" data-i18n="tab.beta">BETA</span></button>
                     <div class="tab-dd" id="demoDd">
                         <button class="tab-btn tab-dd-toggle" id="demoDdToggle"><span data-i18n="tab.demo">ANALYTICS</span><span class="tab-beta" data-i18n="tab.beta">BETA</span><svg class="tab-dd-caret" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 6l5 5 5-5" stroke="currentColor" stroke-width="2" stroke-linecap="square"/></svg></button>
                         <div class="tab-dd-menu" id="demoDdMenu" hidden>
@@ -543,7 +544,149 @@
                             </div>
                         </div>
                     </div>
-                    <div class="tab-panel"></div>
+                    <div class="tab-panel">
+                        <div class="plugins-panel">
+                            <div class="panel-header">
+                                <h2 class="panel-title" data-i18n="hl.title">HIGHLIGHTS</h2>
+                                <span class="panel-tag" data-i18n="hl.tag">DEMO RECORDER</span>
+                            </div>
+
+                            <div class="hm-loading" id="hmLoading" hidden>
+                                <div class="dvload-box">
+                                    <div class="dvload-bars"><i></i><i></i><i></i><i></i></div>
+                                    <span class="dvload-title" data-i18n="hl.loadTitle">STARTING HIGHLIGHTER</span>
+                                    <span class="dvload-sub" data-i18n="hl.loadSub">reading the toolchain and your demos</span>
+                                </div>
+                            </div>
+
+                            <div class="hm-gate" id="hmGate" hidden>
+                                <p class="skins-desc" data-i18n="hl.gateDesc">
+                                    Highlights are made by HighlighterCS2, a companion tool that reads a demo,
+                                    finds the rounds worth watching and records them. It is about 136 MB and
+                                    installs next to the launcher. HLAE and ffmpeg are fetched by the tool
+                                    itself the first time you record.
+                                </p>
+                                <div class="dl-btn-row">
+                                    <button class="btn btn-launch" id="hmInstallBtn">
+                                        <svg class="btn-icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                        <span data-i18n="hl.install">INSTALL HIGHLIGHTER</span>
+                                    </button>
+                                    <a class="plugin-gh-link hm-gh" id="hmRepoLink" href="https://github.com/Sevelinish/CS2Prak-HighlightMaker/releases" target="_blank" rel="noopener"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg><span data-i18n="hl.releases">RELEASES</span></a>
+                                </div>
+                                <pre class="unin-log" id="hmInstallLog" hidden></pre>
+                            </div>
+
+                            <div class="hm-main" id="hmMain" hidden>
+                                <div class="hm-subtabs" role="tablist">
+                                    <button class="hm-subtab active" data-view="find" role="tab" aria-selected="true" data-i18n="hl.viewFind">FIND</button>
+                                    <button class="hm-subtab" data-view="mine" role="tab" aria-selected="false" data-i18n="hl.viewMine">MY HIGHLIGHTS</button>
+                                </div>
+                                <div id="hmViewFind">
+                                <div class="hm-probe" id="hmProbe"></div>
+
+                                <div class="hm-console">
+                                <div class="hm-console-row">
+                                    <label class="hm-ctl hm-ctl-demo">
+                                        <span class="hm-ctl-label" data-i18n="hl.lDemo">DEMO</span>
+                                        <select class="fk-input hm-demo-select" id="hmDemoSelect"></select>
+                                    </label>
+                                    <div class="hm-ctl-btns">
+                                        <button class="btn-check-updates" id="hmRefreshBtn" data-i18n="hl.refresh">REFRESH</button>
+                                        <label class="btn-check-updates hm-upload-label" for="hmUploadInput" data-i18n="hl.upload">ADD DEMO…</label>
+                                        <input type="file" id="hmUploadInput" accept=".dem" hidden>
+                                    </div>
+                                </div>
+
+                                <div class="hm-console-row">
+                                    <label class="hm-ctl hm-ctl-player">
+                                        <span class="hm-ctl-label" data-i18n="hl.lPlayer">PLAYER</span>
+                                        <select class="fk-input hm-player-select" id="hmPlayerSelect"></select>
+                                    </label>
+                                    <label class="hm-ctl hm-ctl-type">
+                                        <span class="hm-ctl-label" data-i18n="hl.lType">TYPE</span>
+                                        <select class="fk-input hm-type-select" id="hmTypeSelect">
+                                            <option value="highlights" data-i18n="hl.tHighlights">Highlights</option>
+                                            <option value="grenades:all" data-i18n="hl.tAllNades">All grenades</option>
+                                            <option value="grenades:smoke" data-i18n="hl.tSmoke">Smokes</option>
+                                            <option value="grenades:flash" data-i18n="hl.tFlash">Flashes</option>
+                                            <option value="grenades:he" data-i18n="hl.tHe">HE</option>
+                                            <option value="grenades:molotov" data-i18n="hl.tMolotov">Molotovs</option>
+                                            <option value="grenades:decoy" data-i18n="hl.tDecoy">Decoys</option>
+                                        </select>
+                                    </label>
+                                    <div class="hm-ctl-btns hm-ctl-go">
+                                        <button class="btn-plugin-autoinstall" id="hmFindBtn" data-i18n="hl.find">FIND</button>
+                                        <button class="btn-plugin-configure" id="hmConfigBtn" type="button" data-i18n="hl.config" data-i18n-attr="title" title="SETTINGS">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                                            <span class="btn-plugin-configure-label" data-i18n="hl.config">SETTINGS</span>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="hm-console-foot">
+                                    <span class="plugins-hint" id="hmHint"></span>
+                                </div>
+                                </div>
+
+                                <div class="hm-actions" id="hmActions" hidden>
+                                    <span class="hm-actions-cap" data-i18n="hl.selected">SELECTED</span>
+                                    <span class="hm-picked" id="hmPicked"></span>
+                                    <div class="hm-actions-l">
+                                        <button class="btn-check-updates" id="hmAllBtn" data-i18n="hl.all">SELECT ALL</button>
+                                        <button class="btn-check-updates" id="hmNoneBtn" data-i18n="hl.none">CLEAR</button>
+                                    </div>
+                                    <div class="hm-actions-r">
+                                        <label class="hm-onefile"><input type="checkbox" class="hm-pick" id="hmSingleFile"><span data-i18n="hl.singleFile">One file</span></label>
+                                        <button class="btn-check-updates" id="hmPreviewBtn" data-i18n="hl.preview">PREVIEW</button>
+                                        <button class="btn-plugin-autoinstall" id="hmRecordBtn" data-i18n="hl.record">RECORD</button>
+                                    </div>
+                                </div>
+
+                                <div class="hm-job" id="hmJob" hidden>
+                                    <div class="hm-job-head">
+                                        <span class="hm-job-stage" id="hmJobStage"></span>
+                                        <span class="hm-job-title" id="hmJobTitle"></span>
+                                        <button class="btn-check-updates" id="hmCancelBtn" data-i18n="hl.cancel">CANCEL</button>
+                                        <button class="btn-check-updates" id="hmRevealBtn" hidden data-i18n="hl.openFolder">OPEN FOLDER</button>
+                                    </div>
+                                    <div class="hm-bar"><div class="hm-bar-fill" id="hmBarFill"></div></div>
+                                    <div class="hm-job-detail" id="hmJobDetail"></div>
+                                    <div class="hm-job-clips" id="hmJobClips"></div>
+                                </div>
+
+                                <div class="hm-searching" id="hmSearching" hidden>
+                                    <div class="dvload-bars"><i></i><i></i><i></i><i></i></div>
+                                    <span class="dvload-sub" data-i18n="hl.working">Reading the demo…</span>
+                                </div>
+
+                                <div class="hm-results-head" id="hmResultsHead" hidden></div>
+                                <div class="hm-results" id="hmResults"></div>
+                                </div>
+
+                                <div id="hmViewMine" hidden>
+                                    <div class="hm-console">
+                                        <div class="hm-console-row">
+                                            <div class="hm-ctl-btns">
+                                                <button class="btn-check-updates" id="hmMineRefresh" data-i18n="hl.refresh">REFRESH</button>
+                                                <button class="btn-check-updates" id="hmMineFolder" data-i18n="hl.openFolder">OPEN FOLDER</button>
+                                            </div>
+                                            <span class="plugins-hint" id="hmMineHint"></span>
+                                        </div>
+                                    </div>
+                                    <div class="hm-clips" id="hmMineList"></div>
+                                    <div class="hm-player" id="hmPlayerBox" hidden>
+                                        <div class="hm-player-head">
+                                            <span class="hm-video-name" id="hmVideoName"></span>
+                                            <button class="sp-close-btn" id="hmVideoClose" type="button" title="CLOSE" data-i18n="hl.close" data-i18n-attr="title">
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                                            </button>
+                                        </div>
+                                        <video class="hm-video" id="hmVideo" controls preload="metadata"></video>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                     <div class="tab-panel">
                         <div class="settings-panel">
                             <div class="panel-header">
@@ -922,6 +1065,21 @@
         <div class="stp-grid" id="stpGrid"></div>
       </div>
     </div>
+    <div class="upd-backdrop" id="hmCfgBackdrop">
+        <div class="upd-modal hm-cfg-modal">
+            <div class="upd-header">
+                <span class="upd-title" data-i18n="hl.cfgTitle">HIGHLIGHTER SETTINGS</span>
+                <button class="sp-close-btn" id="hmCfgClose">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            <div class="hm-cfg-body" id="hmCfgBody"></div>
+            <div class="po-actions">
+                <button class="btn-plugin-autoinstall" id="hmCfgSave" data-i18n="hl.cfgSave">SAVE</button>
+                <span class="plugins-hint" id="hmCfgHint"></span>
+            </div>
+        </div>
+    </div>
     <div class="upd-backdrop" id="poBackdrop">
         <div class="upd-modal po-modal">
             <div class="upd-header">
@@ -964,8 +1122,8 @@
             </div>
         </div>
     </div>
-    <script src="/static/i18n.js?v=142"></script>
-    <script src="/static/script.js?v=98"></script>
+    <script src="/static/i18n.js?v=153"></script>
+    <script src="/static/script.js?v=118"></script>
     <script src="/static/desktop.js?v=6"></script>
     <script src="/static/skinpicker.js?v=103"></script>
     <script src="/static/binds.js?v=101"></script>

@@ -29,6 +29,8 @@ public static class Uninstaller
         [
             ("server",        AppPaths.ServerRoot, "dir"),
             ("overlayState",  Path.Combine(AppPaths.ServerRoot, "overlay_state.json"), "file"),
+            ("highlighter",   AppPaths.HighlighterDir, "dir"),
+            ("highlighterState", AppPaths.HighlighterState, "file"),
             ("skinsDb",       AppPaths.DbPath, "file"),
             ("pluginState",   AppPaths.PluginStatePath, "file"),
             ("demoLibrary",   DemoLibrary, "file"),
