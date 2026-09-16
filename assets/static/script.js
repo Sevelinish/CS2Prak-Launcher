@@ -420,7 +420,7 @@ _tabBtns.forEach(btn => {
         }
         if (next === 4 && window.initDemo) window.initDemo();
         if (next === 5) { checkServerInstalled(); checkSkinsReady(); }
-        if (next === 6) initHighlights();
+        if (next === 6) initHighlights(); else hlStopProbeWatch();
         if (next === 2) checkSkinsReady();
         if (next === 8 && window.initStatistics) window.initStatistics();
         if (next === 9 && window.initAdvanced) window.initAdvanced();
@@ -1752,6 +1752,8 @@ const HL = {
     recording: false,
     sort: { key: 'round', dir: 'asc' },
     jobTimer: null,
+    probeTimer: null,
+    probeShape: '',
 };
 
 function hlEl(id) { return document.getElementById(id); }
@@ -1763,52 +1765,108 @@ function hlSetHint(text, bad) {
     hint.classList.toggle('bad', !!bad);
 }
 
+function hlToolChip(name) {
+    const chip = document.createElement('span');
+    chip.className = 'hm-tool';
+
+    const icon = document.createElement('img');
+    icon.className = 'hm-tool-icon';
+    icon.alt = name;
+    icon.src = '/static/tool_icons/' + encodeURIComponent(name.toLowerCase()) + '.png?v=3';
+    icon.addEventListener('load', () => {
+        if (icon.naturalHeight && icon.naturalWidth / icon.naturalHeight > 1.6) {
+            chip.classList.add('hm-tool-wide');
+        }
+    });
+    icon.addEventListener('error', () => {
+        icon.remove();
+        chip.classList.remove('hm-tool-wide');
+        chip.textContent = name.toUpperCase();
+        chip.classList.add('hm-tool-text');
+    });
+
+    chip.appendChild(icon);
+    return chip;
+}
+
 function hlRenderProbe() {
     const box = hlEl('hmProbe');
     if (!box) return;
     const probe = HL.status && HL.status.probe;
-    box.textContent = '';
-    if (!probe) return;
+    if (!probe) { box.textContent = ''; HL.probeShape = ''; return; }
 
-    const strip = document.createElement('div');
-    strip.className = 'hm-probe-strip';
+    const tools = probe.tools || [];
+    const shape = tools.map(tool => String(tool.name || '')).join('|');
 
-    (probe.tools || []).forEach(tool => {
+    // The strip is rebuilt only when the set of tools itself changes. A plain refresh
+    // toggles the classes on the chips that are already there, so the icons keep their
+    // decoded bitmap and the strip never blinks while we poll.
+    if (shape !== HL.probeShape) {
+        box.textContent = '';
+        const strip = document.createElement('div');
+        strip.className = 'hm-probe-strip';
+        tools.forEach(tool => strip.appendChild(hlToolChip(String(tool.name || ''))));
+        const note = document.createElement('span');
+        note.className = 'hm-probe-note';
+        strip.appendChild(note);
+        box.appendChild(strip);
+        HL.probeShape = shape;
+    }
+
+    const chips = box.querySelectorAll('.hm-tool');
+    tools.forEach((tool, index) => {
+        const chip = chips[index];
+        if (!chip) return;
         const name = String(tool.name || '');
-
-        const chip = document.createElement('span');
-        chip.className = 'hm-tool' + (tool.ready ? ' ok' : '');
+        chip.classList.toggle('ok', !!tool.ready);
         chip.title = name.toUpperCase()
             + (tool.note ? ' \u2014 ' + tool.note : tool.path ? ' \u2014 ' + tool.path : '');
-
-        const icon = document.createElement('img');
-        icon.className = 'hm-tool-icon';
-        icon.alt = name;
-        icon.src = '/static/tool_icons/' + encodeURIComponent(name.toLowerCase()) + '.png?v=3';
-        icon.addEventListener('load', () => {
-            if (icon.naturalHeight && icon.naturalWidth / icon.naturalHeight > 1.6) {
-                chip.classList.add('hm-tool-wide');
-            }
-        });
-        icon.addEventListener('error', () => {
-            icon.remove();
-            chip.classList.remove('hm-tool-wide');
-            chip.textContent = name.toUpperCase();
-            chip.classList.add('hm-tool-text');
-        });
-
-        chip.appendChild(icon);
-        strip.appendChild(chip);
     });
 
-    const note = document.createElement('span');
-    note.className = 'hm-probe-note';
-    note.textContent = probe.ready ? t('hl.ready')
-        : probe.gameRunning ? t('hl.gameRunning')
-        : t('hl.toolsLater');
-    strip.appendChild(note);
+    const note = box.querySelector('.hm-probe-note');
+    if (note) {
+        note.textContent = probe.ready ? t('hl.ready')
+            : probe.gameRunning ? t('hl.gameRunning')
+            : t('hl.toolsLater');
+    }
+}
 
-    box.appendChild(strip);
+// HLAE and ffmpeg are downloaded by the plugin itself, during the first recording. Until
+// they land the chips are grey, and the user should not have to restart the launcher to
+// see them light up. Poll while something is still missing, stop once everything is ready.
+function hlStopProbeWatch() {
+    clearTimeout(HL.probeTimer);
+    HL.probeTimer = null;
+}
+
+function hlWatchProbe() {
+    hlStopProbeWatch();
+    if (_activeTab !== 6) return;
+    if (!HL.status || !HL.status.installed) return;
+
+    const probe = HL.status.probe;
+    if (probe && probe.ready) return;
+
+    HL.probeTimer = setTimeout(hlProbeTick, HL.recording ? 2000 : 6000);
+}
+
+async function hlProbeTick() {
+    HL.probeTimer = null;
+    if (_activeTab !== 6) return;
+
+    await hlRefreshProbe();
+    hlWatchProbe();
+}
+
+async function hlRefreshProbe() {
+    if (!HL.status || !HL.status.installed) return;
+    try {
+        const r = await (await fetch('/api/highlights/probe')).json();
+        if (r && r.ok && r.probe) {
+            HL.status.probe = r.probe;
+            hlRenderProbe();
+        }
+    } catch { }
 }
 
 function hlRenderDemos() {
@@ -2235,6 +2293,7 @@ async function initHighlights() {
     }
 
     if (await hlLoadStatus()) {
+        hlWatchProbe();
         await hlLoadDemos();
         hlLoadPlayers();
         clearTimeout(HL.jobTimer);
@@ -2354,6 +2413,8 @@ async function hlPollJob() {
         }
         if (job.state === 'succeeded') showToast(t('hl.doneN').replace('{n}', job.clips.length), 'success');
         if (job.state === 'failed') showToast(job.error || t('hl.failed'), 'error');
+        await hlRefreshProbe();
+        hlWatchProbe();
     } catch {
         HL.jobTimer = setTimeout(hlPollJob, 3000);
     }

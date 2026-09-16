@@ -31,6 +31,7 @@ public static class HighlightEndpoints
     public static void Map(IEndpointRouteBuilder app)
     {
         app.MapGet("/api/highlights/status", Status);
+        app.MapGet("/api/highlights/probe", Probe);
         app.MapPost("/api/highlights/install", Install);
         app.MapGet("/api/highlights/install/status", () => Results.Json(new
         {
@@ -238,6 +239,32 @@ public static class HighlightEndpoints
         }
 
         return Results.Json(payload);
+    }
+
+    private static IResult Probe()
+    {
+        if (!HighlighterInstall.IsInstalled)
+            return Results.Json(new { ok = false, installed = false });
+
+        // A background refresh must never cold-start the plugin: the caller only wants to
+        // know whether the tools showed up, and Ensure() would spawn a 24 MB process for it.
+        if (!HighlighterProcess.IsRunning)
+            return Results.Json(new { ok = false, installed = true, running = false });
+
+        try
+        {
+            return Results.Json(new JsonObject
+            {
+                ["ok"] = true,
+                ["installed"] = true,
+                ["running"] = true,
+                ["probe"] = HighlighterClient.Call("system.probe", null, TimeSpan.FromSeconds(30)),
+            });
+        }
+        catch (Exception e)
+        {
+            return Results.Json(new { ok = false, message = e.Message });
+        }
     }
 
     private static IResult Install()
