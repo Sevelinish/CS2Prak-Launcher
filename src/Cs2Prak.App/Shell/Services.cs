@@ -47,6 +47,11 @@ internal static class Services
 
         ServerEndpoints.BeforeLaunch = () =>
         {
+            // A recording may have left CS2 sitting on the main menu. A second CS2 cannot
+            // start alongside it, so hand that one back before launching the server.
+            if (HighlighterProcess.IsRunning)
+                HighlighterClient.TryCall("session.release", null, TimeSpan.FromSeconds(30));
+
             ServerConfigurator.PatchWeaponPaintsConfig();
             ServerConfigurator.ConfigureWeaponPaintsDb();
             SkinsDatabase.EnsureSchema();

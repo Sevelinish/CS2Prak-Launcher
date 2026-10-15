@@ -1,4 +1,6 @@
+using System.Diagnostics;
 using System.Net;
+using System.Text;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 
@@ -68,6 +70,7 @@ public static partial class HltvImport
 
         string document;
         try { document = Fetch("https://www.hltv.org" + match.Groups[1].Value); }
+        catch (BlockedException) { return Failed("blocked"); }
         catch (Exception) { return Failed("fetch"); }
 
         var (player, items) = Parse(document);
@@ -80,12 +83,91 @@ public static partial class HltvImport
         return new Result(true, null, player, items.Count, matched, unmatched);
     }
 
+    private sealed class BlockedException() : Exception("HLTV served a Cloudflare challenge.");
+
+    private const string UserAgent =
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        + "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36";
+
+    /// <summary>
+    /// Cloudflare fingerprints the TLS handshake, not the headers, and .NET's handshake
+    /// does not pass: every HttpClient shape (1.1, 2.0, with and without browser headers)
+    /// comes back with the "Just a moment" interstitial. Windows ships curl.exe, whose
+    /// handshake still gets through, so that is the route we take first. HttpClient stays
+    /// as the fallback for the machines that have no curl.exe.
+    /// </summary>
     private static string Fetch(string pageUrl)
     {
-        using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
+        var page = CurlFetch(pageUrl);
+        if (page is not null && !Challenged(page)) return page;
+
+        var fallback = HttpFetch(pageUrl);
+        if (Challenged(fallback)) throw new BlockedException();
+        return fallback;
+    }
+
+    // Markers taken from a real interstitial. Note that "/cdn-cgi/challenge-platform/"
+    // is NOT one of them: Cloudflare injects that script into ordinary 200 pages too,
+    // so matching on it rejects the page we actually wanted.
+    private static bool Challenged(string page) =>
+        page.Contains("Just a moment", StringComparison.Ordinal)
+        || page.Contains("_cf_chl_opt", StringComparison.Ordinal);
+
+    private static string? CurlFetch(string pageUrl)
+    {
+        var curl = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System),
+                                "curl.exe");
+        if (!File.Exists(curl)) return null;
+
+        var start = new ProcessStartInfo
+        {
+            FileName = curl,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            StandardOutputEncoding = Encoding.UTF8,
+        };
+        foreach (var argument in new[]
+                 {
+                     "--silent", "--show-error", "--location", "--compressed",
+                     "--max-time", "25",
+                     "--user-agent", UserAgent,
+                     "--header", "Accept-Language: en-US,en;q=0.9",
+                     pageUrl,
+                 })
+        {
+            start.ArgumentList.Add(argument);
+        }
+
+        try
+        {
+            using var process = Process.Start(start);
+            if (process is null) return null;
+
+            // Drain stderr on its own thread: a 2.7 MB page fills the stdout pipe long
+            // before curl exits, and reading them in sequence would deadlock.
+            var errors = process.StandardError.ReadToEndAsync();
+            var page = process.StandardOutput.ReadToEnd();
+
+            if (!process.WaitForExit(30000))
+            {
+                try { process.Kill(entireProcessTree: true); } catch (Exception) { }
+                return null;
+            }
+            errors.Wait(TimeSpan.FromSeconds(2));
+
+            return process.ExitCode == 0 && page.Length > 0 ? page : null;
+        }
+        catch (Exception) { return null; }
+    }
+
+    private static string HttpFetch(string pageUrl)
+    {
+        using var handler = new HttpClientHandler { AutomaticDecompression = DecompressionMethods.All };
+        using var http = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(15) };
         var headers = http.DefaultRequestHeaders;
-        headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                                  + "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36");
+        headers.Add("User-Agent", UserAgent);
         headers.Add("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,"
                               + "image/avif,image/webp,*/*;q=0.8");
         headers.Add("Accept-Language", "en-US,en;q=0.9");
@@ -94,8 +176,11 @@ public static partial class HltvImport
         headers.Add("Upgrade-Insecure-Requests", "1");
 
         var response = http.GetAsync(pageUrl).GetAwaiter().GetResult();
+        var body = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+
+        if (Challenged(body)) throw new BlockedException();
         response.EnsureSuccessStatusCode();
-        return response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+        return body;
     }
 
     private sealed record ScrapedItem(string Category, string WeaponSlug, string Title,

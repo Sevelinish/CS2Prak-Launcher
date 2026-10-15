@@ -57,8 +57,9 @@ const KNIFE_WEAPONS = [
 
 const SP = {
     steamid: null,
-    team: 3,                  
-    both: false,              
+    // Weapons, knives and gloves are always written to both sides. Only agents are
+    // genuinely per side in CS2, so SP.team now moves only inside the agents grid.
+    team: 3,
     catalogue: {},            
     glovesCat: [],
     agentsCat: [],
@@ -195,6 +196,10 @@ function selectCategory(catId) {
     SP.currentWeapon   = null;
     SP.currentSkinEntry = null;
 
+    const toggle = document.getElementById('spTeamToggle');
+    if (toggle) toggle.hidden = catId !== 'agents';
+    if (catId !== 'agents') SP.team = 3;
+
     document.querySelectorAll('.sp-cat-btn').forEach(b => {
         b.classList.toggle('active', b.dataset.id === catId);
     });
@@ -279,7 +284,7 @@ function renderSkinsGrid(weaponName, isKnife) {
         knifeSelector.id = 'spKnifeSelector';
         knifeSelector.className = 'sp-knife-selector';
         knifeSelector.innerHTML = `
-            <span class="sp-knife-selector-label">KNIFE TYPE (${SP.both ? 'BOTH' : (SP.team === 3 ? 'CT' : 'T')})</span>
+            <span class="sp-knife-selector-label">KNIFE TYPE</span>
             <select class="sp-knife-select" id="spKnifeTypeSelect">
                 ${KNIFE_WEAPONS.filter(w => SP.catalogue[w]).map(w =>
                     `<option value="${w}" ${w === weaponName ? 'selected' : ''}>${WEAPON_DISPLAY[w] || w}</option>`
@@ -391,8 +396,7 @@ function renderGlovesGrid() {
 function renderAgentsGrid() {
     removeKnifeSelector();
     spWeaponListEl.innerHTML = '';
-    spGridHeaderEl.textContent = (SP.team === 3 ? 'AGENTS — CT' : 'AGENTS — T')
-        + (SP.both ? ' (agents are set per side)' : '');
+    spGridHeaderEl.textContent = SP.team === 3 ? 'AGENTS — CT' : 'AGENTS — T';
     spGridEl.innerHTML = '';
 
     const filtered = SP.agentsCat.filter(a => a.team === SP.team && a.model !== 'null');
@@ -544,23 +548,14 @@ document.querySelectorAll('.sp-team-btn').forEach(btn => {
     btn.addEventListener('click', () => {
         document.querySelectorAll('.sp-team-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-
-        if (btn.dataset.team === 'both') {
-
-            SP.both = true;
-            SP.team = 3;
-            syncBoth();
-        } else {
-            SP.both = false;
-            SP.team = parseInt(btn.dataset.team);
-        }
-        
-        selectCategory(SP.currentCategory);
+        SP.team = parseInt(btn.dataset.team);
+        renderAgentsGrid();
     });
 });
 
+// Mirrors CT onto T for everything that is side agnostic. Agents are deliberately
+// left out: CT and T agent models are different and cannot be shared.
 function syncBoth() {
-    if (!SP.both) return;
     const src = SP.selections[3] || {};
     const copy = {};
     for (const [defindex, cfg] of Object.entries(src)) {
@@ -584,7 +579,7 @@ spSaveBtn.addEventListener('click', async () => {
         });
         const data = await res.json();
         if (data.ok) {
-            spFooterHint.textContent = SP.both ? 'Saved to both sides' : 'Saved successfully';
+            spFooterHint.textContent = 'Saved to both sides';
             setTimeout(() => { spFooterHint.textContent = ''; }, 3000);
         } else {
             spFooterHint.textContent = 'Error: ' + (data.message || 'unknown');
@@ -871,6 +866,7 @@ document.getElementById('stpClearBtn').addEventListener('click', () => {
     const REASONS = {
         badurl:    () => tr('hltv.err.badurl',    'Not a valid HLTV player link.'),
         fetch:     () => tr('hltv.err.fetch',     "Couldn't reach HLTV - try again."),
+        blocked:   () => tr('hltv.err.blocked',   'HLTV is blocking the import right now - try again later.'),
         noskins:   () => tr('hltv.err.noskins',   'No skins are shown on this HLTV profile.'),
         nocatalog: () => tr('hltv.err.nocatalog', 'Skin catalogue not ready - install WeaponPaints first.'),
     };

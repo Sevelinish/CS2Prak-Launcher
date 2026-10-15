@@ -20,9 +20,9 @@ the plugin, so no MySQL or XAMPP install is needed. Skins can also be pulled fro
 an HLTV player profile.
 
 **Plugins.** Installs and updates Metamod:Source, CounterStrikeSharp, MatchZy,
-WeaponPaints, PlayerSettings, MenuManagerCS2, AnyBaseLibCS2, TimerHUD and
-MovementHUD straight from their GitHub releases. Installed plugins can be switched
-on and off, and the launcher checks for newer releases in the background.
+WeaponPaints, PlayerSettings, MenuManagerCS2 and AnyBaseLibCS2 straight from their
+GitHub releases. Installed plugins can be switched on and off, and the launcher
+checks for newer releases in the background.
 
 **Binds.** Binds plugin chat commands to keys and exports `sBinds.cfg`.
 
@@ -43,8 +43,13 @@ grenades are listed by where they landed. The recording plays the demo in CS2 th
 HLAE and encodes the clips with ffmpeg, either as separate files or joined into one.
 Finished clips are listed and played back inside the app.
 
+Per recording you can also replay every kill from the victim's eyes, fly the camera
+behind a grenade from the throw to the detonation, and leave CS2 running so the next
+recording skips the game startup. A game left open is shown in the tab with a button
+to close it, and the launcher closes it for you before starting the practice server.
+
 This tab is driven by [HighlighterCS2](https://github.com/Sevelinish/CS2Prak-HighlightMaker),
-a companion tool the launcher installs and configures for you.
+a companion tool the launcher installs, updates and configures for you.
 
 The interface is available in English and Russian.
 

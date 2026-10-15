@@ -21,6 +21,7 @@ public static class HighlightEndpoints
         [JsonPropertyName("kinds")] public string[]? Kinds { get; set; }
         [JsonPropertyName("selection")] public JsonObject? Selection { get; set; }
         [JsonPropertyName("overrides")] public JsonObject? Overrides { get; set; }
+        [JsonPropertyName("keepGameOpen")] public bool KeepGameOpen { get; set; }
     }
 
     public sealed class DemoBody
@@ -42,6 +43,10 @@ public static class HighlightEndpoints
 
         app.MapPost("/api/highlights/start", Start);
         app.MapPost("/api/highlights/stop", Stop);
+
+        app.MapGet("/api/highlights/session", Session);
+        app.MapPost("/api/highlights/session/release", ReleaseSession);
+        app.MapGet("/api/highlights/update", UpdateCheck);
 
         app.MapGet("/api/highlights/demos", Demos);
         app.MapPost("/api/highlights/upload", Upload);
@@ -187,6 +192,7 @@ public static class HighlightEndpoints
         {
             var request = RecordRequest(body);
             request["label"] = "CS2Prak-Launcher";
+            if (body.KeepGameOpen) request["keepGameOpen"] = true;
             return Results.Json(new { ok = true, job = HighlightJobs.Submit(request) });
         }
         catch (HighlighterException e)
@@ -227,6 +233,9 @@ public static class HighlightEndpoints
         {
             payload["probe"] = HighlighterClient.Call("system.probe", null, TimeSpan.FromSeconds(30));
             payload["running"] = HighlighterProcess.IsRunning;
+            payload["session"] = HighlighterClient
+                .TryCall("session.get", new JsonObject(), TimeSpan.FromSeconds(15))
+                ?["session"]?.DeepClone();
         }
         catch (HighlighterException e)
         {
@@ -253,18 +262,67 @@ public static class HighlightEndpoints
 
         try
         {
+            var probe = HighlighterClient.Call("system.probe", null, TimeSpan.FromSeconds(30));
+            var session = HighlighterClient.TryCall("session.get", new JsonObject(),
+                                                    TimeSpan.FromSeconds(15));
+
             return Results.Json(new JsonObject
             {
                 ["ok"] = true,
                 ["installed"] = true,
                 ["running"] = true,
-                ["probe"] = HighlighterClient.Call("system.probe", null, TimeSpan.FromSeconds(30)),
+                ["probe"] = probe,
+                ["session"] = session?["session"]?.DeepClone(),
             });
         }
         catch (Exception e)
         {
             return Results.Json(new { ok = false, message = e.Message });
         }
+    }
+
+    /// <summary>
+    /// The game a previous job left running. Null unless that job asked for it.
+    /// </summary>
+    private static IResult Session()
+    {
+        if (!HighlighterProcess.IsRunning)
+            return Results.Json(new { ok = true, active = false });
+
+        var data = HighlighterClient.TryCall("session.get", new JsonObject(),
+                                             TimeSpan.FromSeconds(15));
+        if (data is null) return Results.Json(new { ok = true, active = false });
+
+        return Results.Json(new JsonObject
+        {
+            ["ok"] = true,
+            ["active"] = data["active"]?.DeepClone() ?? false,
+            ["session"] = data["session"]?.DeepClone(),
+        });
+    }
+
+    private static IResult ReleaseSession() =>
+        Call("session.release", new JsonObject(), TimeSpan.FromSeconds(60));
+
+    /// <summary>
+    /// Read the newest release straight from GitHub rather than through the plugin's own
+    /// update.check: the launcher owns installing HighlighterCS2, and this answer has to
+    /// work while the plugin is stopped.
+    /// </summary>
+    private static IResult UpdateCheck()
+    {
+        var current = HighlighterInstall.InstalledVersion();
+        var latest = HighlighterInstall.LatestVersion();
+
+        return Results.Json(new
+        {
+            ok = true,
+            current,
+            latest,
+            available = current is { Length: > 0 }
+                        && latest is { Length: > 0 }
+                        && !string.Equals(current, latest, StringComparison.OrdinalIgnoreCase),
+        });
     }
 
     private static IResult Install()

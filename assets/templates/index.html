@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CS2 Practice Server</title>
-    <link rel="stylesheet" href="/static/style.css?v=210">
+    <link rel="stylesheet" href="/static/style.css?v=213">
     
     <script>(function(){try{document.documentElement.removeAttribute('data-theme');localStorage.setItem('cs2prak_theme','dark');}catch(e){}})();</script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -580,9 +580,16 @@
                                 <div class="hm-subtabs" role="tablist">
                                     <button class="hm-subtab active" data-view="find" role="tab" aria-selected="true" data-i18n="hl.viewFind">FIND</button>
                                     <button class="hm-subtab" data-view="mine" role="tab" aria-selected="false" data-i18n="hl.viewMine">MY HIGHLIGHTS</button>
+                                    <button class="hm-update" id="hmUpdateBtn" hidden></button>
                                 </div>
                                 <div id="hmViewFind">
                                 <div class="hm-probe" id="hmProbe"></div>
+
+                                <div class="hm-warm" id="hmWarm" hidden>
+                                    <span class="hm-warm-dot"></span>
+                                    <span class="hm-warm-text" id="hmWarmText"></span>
+                                    <button class="btn-check-updates" id="hmWarmRelease" data-i18n="hl.closeGame">CLOSE GAME</button>
+                                </div>
 
                                 <div class="hm-console">
                                 <div class="hm-console-row">
@@ -636,6 +643,9 @@
                                         <button class="btn-check-updates" id="hmNoneBtn" data-i18n="hl.none">CLEAR</button>
                                     </div>
                                     <div class="hm-actions-r">
+                                        <label class="hm-onefile hm-src-highlights" data-i18n="hl.enemyHint" data-i18n-attr="title" title="Replay each kill from the victim's eyes at the end of the clip"><input type="checkbox" class="hm-pick" id="hmEnemyView"><span data-i18n="hl.enemyView">Enemy POV</span></label>
+                                        <label class="hm-onefile hm-src-grenades" data-i18n="hl.flyHint" data-i18n-attr="title" title="Put the camera behind the grenade and follow it to the detonation"><input type="checkbox" class="hm-pick" id="hmFollowFlight"><span data-i18n="hl.followFlight">Follow the throw</span></label>
+                                        <label class="hm-onefile" data-i18n="hl.keepOpenHint" data-i18n-attr="title" title="Leave CS2 running so the next recording skips the 60 to 120 second startup"><input type="checkbox" class="hm-pick" id="hmKeepOpen"><span data-i18n="hl.keepOpen">Keep game open</span></label>
                                         <label class="hm-onefile"><input type="checkbox" class="hm-pick" id="hmSingleFile"><span data-i18n="hl.singleFile">One file</span></label>
                                         <button class="btn-check-updates" id="hmPreviewBtn" data-i18n="hl.preview">PREVIEW</button>
                                         <button class="btn-plugin-autoinstall" id="hmRecordBtn" data-i18n="hl.record">RECORD</button>
@@ -950,10 +960,9 @@
             <span class="sp-title">WEAPON SKINS</span>
             <span class="sp-steamid" id="spSteamId"></span>
           </div>
-          <div class="sp-team-toggle">
+          <div class="sp-team-toggle" id="spTeamToggle" hidden>
             <button class="sp-team-btn active" data-team="3">CT</button>
             <button class="sp-team-btn" data-team="2">T</button>
-            <button class="sp-team-btn" data-team="both">BOTH</button>
           </div>
           <button class="sp-close-btn" id="spCloseBtn">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -1122,10 +1131,10 @@
             </div>
         </div>
     </div>
-    <script src="/static/i18n.js?v=153"></script>
-    <script src="/static/script.js?v=120"></script>
+    <script src="/static/i18n.js?v=157"></script>
+    <script src="/static/script.js?v=124"></script>
     <script src="/static/desktop.js?v=6"></script>
-    <script src="/static/skinpicker.js?v=103"></script>
+    <script src="/static/skinpicker.js?v=104"></script>
     <script src="/static/binds.js?v=101"></script>
     
     <div class="imp" id="impPanel" hidden>

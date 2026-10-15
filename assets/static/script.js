@@ -1290,8 +1290,6 @@ const PLUGIN_AUTHORS = {
     'WeaponPaints':       'Nereziel',
     'CounterStrikeSharp': 'roflmuffin',
     'Metamod:Source':     'alliedmodders',
-    'TimerHUD':           'Sevelinish',
-    'MovementHUD':        'Sevelinish',
 };
 
 function buildPmRow(p) {
@@ -1754,6 +1752,7 @@ const HL = {
     jobTimer: null,
     probeTimer: null,
     probeShape: '',
+    session: null,
 };
 
 function hlEl(id) { return document.getElementById(id); }
@@ -1829,6 +1828,43 @@ function hlRenderProbe() {
             : probe.gameRunning ? t('hl.gameRunning')
             : t('hl.toolsLater');
     }
+
+    hlRenderSession();
+}
+
+// A job asked to leave CS2 open so the next one skips the 60 to 120 second startup.
+// It sits on the main menu until something closes it, so the tab has to say so and
+// offer the way out.
+function hlRenderSession() {
+    const row = hlEl('hmWarm');
+    if (!row) return;
+
+    const session = HL.session;
+    if (!session) { row.hidden = true; return; }
+
+    row.hidden = false;
+
+    const demo = session.demoName || session.demoPath || '';
+    const left = Math.max(0, Math.round((session.secondsLeft || 0) / 60));
+    let text = t('hl.warmOpen');
+    if (demo) text += '  \u00b7  ' + demo;
+    if (left > 0) text += '  \u00b7  ' + t('hl.warmLeft').replace('{m}', left);
+
+    hlEl('hmWarmText').textContent = text;
+}
+
+async function hlReleaseSession() {
+    const btn = hlEl('hmWarmRelease');
+    btn.disabled = true;
+    try {
+        await fetch('/api/highlights/session/release', { method: 'POST' });
+        HL.session = null;
+        hlRenderSession();
+        showToast(t('hl.warmClosed'), 'success');
+    } catch {
+        hlSetHint(t('hl.noBackend'), true);
+    }
+    btn.disabled = false;
 }
 
 // HLAE and ffmpeg are downloaded by the plugin itself, during the first recording. Until
@@ -1864,6 +1900,7 @@ async function hlRefreshProbe() {
         const r = await (await fetch('/api/highlights/probe')).json();
         if (r && r.ok && r.probe) {
             HL.status.probe = r.probe;
+            HL.session = r.session || null;
             hlRenderProbe();
         }
     } catch { }
@@ -1919,10 +1956,27 @@ async function hlLoadStatus() {
     if (gate) gate.hidden = installed;
     if (main) main.hidden = !installed;
     if (installed) {
+        HL.session = (HL.status && HL.status.session) || null;
         hlRenderProbe();
         if (HL.status && HL.status.error) hlSetHint(HL.status.error, true);
     }
     return installed;
+}
+
+// HighlighterCS2 ships its own releases. The launcher owns installing them, so this
+// only has to notice that a newer tag exists and point at the install we already have.
+async function hlCheckUpdate() {
+    const btn = hlEl('hmUpdateBtn');
+    if (!btn) return;
+    try {
+        const r = await (await fetch('/api/highlights/update')).json();
+        if (!r || !r.ok || !r.available) { btn.hidden = true; return; }
+        btn.textContent = t('hl.updateTo').replace('{v}', r.latest);
+        btn.title = t('hl.updateFrom').replace('{v}', r.current || '?');
+        btn.hidden = false;
+    } catch {
+        btn.hidden = true;
+    }
 }
 
 function hlRenderPlayers(players) {
@@ -2253,6 +2307,59 @@ function hlInstall() {
         .catch(() => { btn.disabled = false; log.textContent = t('hl.noBackend'); });
 }
 
+// The gate's install log lives inside the gate, which is hidden once HighlighterCS2
+// is installed. An update started from the badge reports on the badge instead, so the
+// 136 MB download is never a frozen button.
+async function hlUpdatePlugin() {
+    const btn = hlEl('hmUpdateBtn');
+    if (btn.disabled) return;
+
+    btn.disabled = true;
+    hlSwitchView('find');
+    hlSetHint(t('hl.updating'));
+
+    try {
+        const started = await (await fetch('/api/highlights/install', { method: 'POST' })).json();
+        if (!started.ok) {
+            hlSetHint(started.message || t('hl.failed'), true);
+            btn.disabled = false;
+            return;
+        }
+    } catch {
+        hlSetHint(t('hl.noBackend'), true);
+        btn.disabled = false;
+        return;
+    }
+
+    for (;;) {
+        await new Promise(done => setTimeout(done, 800));
+
+        let s;
+        try { s = await (await fetch('/api/highlights/install/status')).json(); }
+        catch { continue; }
+
+        const last = (s.log || []).slice(-1)[0];
+        if (last) hlSetHint(last);
+        if (s.running) continue;
+
+        btn.disabled = false;
+        if (s.exitCode === 0) {
+            showToast(t('hl.installed'), 'success');
+            hlSetHint('');
+            HL.probeShape = '';
+            if (await hlLoadStatus()) {
+                hlWatchProbe();
+                await hlLoadDemos();
+                hlLoadPlayers();
+            }
+            hlCheckUpdate();
+        } else {
+            hlSetHint(t('hl.failed'), true);
+        }
+        return;
+    }
+}
+
 async function initHighlights() {
     if (!HL.loaded) {
         HL.loaded = true;
@@ -2280,6 +2387,7 @@ async function initHighlights() {
             const parts = e.target.value.split(':');
             HL.source = parts[0];
             HL.kind = parts[1] || 'all';
+            hlSyncSourceSwitches();
             hlEl('hmResults').textContent = '';
     hlEl('hmResultsHead').hidden = true;
             hlPickedChanged();
@@ -2289,11 +2397,15 @@ async function initHighlights() {
         hlInitRecording();
         hlInitExtras();
         hlDressSelects();
+        hlSyncSourceSwitches();
+        hlEl('hmWarmRelease').addEventListener('click', hlReleaseSession);
+        hlEl('hmUpdateBtn').addEventListener('click', hlUpdatePlugin);
         document.addEventListener('langchange', hlRenderProbe);
     }
 
     if (await hlLoadStatus()) {
         hlWatchProbe();
+        hlCheckUpdate();
         await hlLoadDemos();
         hlLoadPlayers();
         clearTimeout(HL.jobTimer);
@@ -2327,10 +2439,28 @@ function hlRecordBody() {
         source: HL.source,
         selection: { ids: hlPickedIds() },
     };
-    if (hlEl('hmSingleFile').checked) {
-        body.overrides = { recording: { singleFile: true } };
+    const recording = {};
+    if (hlEl('hmSingleFile').checked) recording.singleFile = true;
+    if (HL.source === 'highlights' && hlEl('hmEnemyView').checked) {
+        recording.recordEnemyView = true;
     }
+    if (Object.keys(recording).length) body.overrides = { recording: recording };
+
+    if (HL.source === 'grenades' && hlEl('hmFollowFlight').checked) {
+        body.overrides = body.overrides || {};
+        body.overrides.nades = { followFlight: true };
+    }
+
+    if (hlEl('hmKeepOpen').checked) body.keepGameOpen = true;
     return body;
+}
+
+// Enemy POV only means something for kills, following the throw only for grenades.
+function hlSyncSourceSwitches() {
+    document.querySelectorAll('.hm-src-highlights')
+        .forEach(el => { el.hidden = HL.source !== 'highlights'; });
+    document.querySelectorAll('.hm-src-grenades')
+        .forEach(el => { el.hidden = HL.source !== 'grenades'; });
 }
 
 async function hlPreview() {
@@ -2347,9 +2477,17 @@ async function hlPreview() {
 
         const s = (r.data.plan && r.data.plan.summary) || {};
         const minutes = Math.round((s.totalSeconds || 0) / 6) / 10;
-        hlSetHint(t('hl.planIs')
+
+        // Picks that cover the same stretch of the demo are filmed as one clip, so the
+        // clip count can be well below what the user ticked. Say why instead of
+        // letting it look like something went missing.
+        let hint = t('hl.planIs')
             .replace('{c}', s.clipCount || 0)
-            .replace('{m}', minutes));
+            .replace('{m}', minutes);
+        if (s.mergedSources > 0) {
+            hint += '  \u00b7  ' + t('hl.merged').replace('{n}', s.mergedSources);
+        }
+        hlSetHint(hint);
     } catch {
         hlSetHint(t('hl.noBackend'), true);
     }
@@ -2561,6 +2699,16 @@ async function hlLoadMine() {
     }
 }
 
+// config.describe carries no machine readable option list, only prose, so the
+// enumerable ones are spelled out here. Anything not listed stays a text field,
+// which is right for the open ended keys such as encoding.videoCodec.
+const HL_CHOICES = {
+    'recording.spectatorMode': ['fixed', 'first_person', 'third_person', 'free'],
+    'recording.captureMode':   ['clean', 'crosshair'],
+    'recording.handoverChannel': ['netcon', 'demo'],
+    'nades.cameraMode':        ['flight', 'thrower'],
+};
+
 function hlCfgInput(field, value) {
     const kind = field.kind;
 
@@ -2573,8 +2721,12 @@ function hlCfgInput(field, value) {
     }
 
     if (kind === 'choice') {
-        const options = String(field.description || '').split(',').map(x => x.trim()).filter(Boolean);
-        if (options.length > 1 && options.every(o => /^[\w-]+$/.test(o))) {
+        const described = String(field.description || '')
+            .split(',').map(x => x.trim()).filter(Boolean);
+        const known = HL_CHOICES[field.path];
+        const options = known
+            || (described.every(o => /^[\w-]+$/.test(o)) ? described : []);
+        if (options.length > 1) {
             const select = document.createElement('select');
             select.className = 'fk-input';
             options.forEach(o => {
@@ -2655,6 +2807,9 @@ async function hlOpenConfig() {
 
     (data.fields || []).forEach(field => {
         const group = field.path.split('.')[0];
+        // The launcher installs HighlighterCS2 itself, so the plugin's own update keys
+        // (including the releases URL) are not the user's to edit here.
+        if (group === 'update') return;
         if (!groups.has(group)) groups.set(group, []);
         groups.get(group).push(field);
     });

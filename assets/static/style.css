@@ -1459,6 +1459,7 @@ body::before { content: none; }
 .sp-steamid { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); letter-spacing: 0.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .sp-team-toggle { display: flex; border: 1px solid var(--line); overflow: hidden; flex-shrink: 0; }
+.sp-team-toggle[hidden] { display: none; }
 .sp-team-btn {
     background: var(--surface-3); border: none;
     border-right: 1px solid var(--line);
@@ -4052,6 +4053,57 @@ body.is-max .dk-i-res { display: block; }
 /* ---- readiness strip ----------------------------------------- */
 .hm-probe { margin: 0 0 12px; }
 .hm-probe:empty { display: none; }
+
+/* ---- the game a previous recording left running --------------- */
+.hm-warm {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: -4px 0 12px;
+    padding: 8px 14px;
+    border: 1px solid color-mix(in srgb, var(--accent) 42%, var(--line));
+    background: var(--accent-wash);
+}
+.hm-warm[hidden] { display: none; }
+.hm-onefile[hidden] { display: none; }
+.hm-warm-dot {
+    width: 7px;
+    height: 7px;
+    flex-shrink: 0;
+    background: var(--accent);
+    animation: hm-warm-pulse 1.8s ease-in-out infinite;
+}
+@keyframes hm-warm-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+.hm-warm-text {
+    flex: 1;
+    min-width: 0;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.4px;
+    color: var(--text-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ---- a newer HighlighterCS2 release ---------------------------- */
+.hm-update {
+    margin: 0 0 0 auto;
+    align-self: center;
+    padding: 5px 11px;
+    border: 1px solid var(--accent);
+    background: var(--accent-wash);
+    cursor: pointer;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+    color: var(--accent);
+    transition: background var(--t), color var(--t);
+}
+.hm-update[hidden] { display: none; }
+.hm-update:hover { background: var(--accent); color: var(--accent-deep); }
+.hm-update:disabled { opacity: 0.5; cursor: default; }
 .hm-probe-strip {
     display: flex;
     align-items: center;
