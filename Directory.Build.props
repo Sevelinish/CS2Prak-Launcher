@@ -1,0 +1,17 @@
+<Project>
+
+  <!--
+    One source of truth for the version: AppInfo.Version in the C# source. MSBuild reads
+    it from there and stamps it into every assembly, so a published build can be asked
+    which version it is. Without this the binaries all claim 1.0.0, and tools/Cs2Prak.Release
+    cannot tell a fresh publish from a stale one left over from the previous release.
+  -->
+  <PropertyGroup>
+    <_AppInfoPath>$(MSBuildThisFileDirectory)src\Cs2Prak.Core\AppInfo.cs</_AppInfoPath>
+    <_AppInfoText Condition="Exists('$(_AppInfoPath)')">$([System.IO.File]::ReadAllText('$(_AppInfoPath)'))</_AppInfoText>
+    <_AppVersion Condition="'$(_AppInfoText)' != ''">$([System.Text.RegularExpressions.Regex]::Match($(_AppInfoText), 'Version\s*=\s*"(?&lt;v&gt;[0-9]+\.[0-9]+\.[0-9]+)"').Groups.get_Item('v').Value)</_AppVersion>
+
+    <Version Condition="'$(_AppVersion)' != ''">$(_AppVersion)</Version>
+  </PropertyGroup>
+
+</Project>

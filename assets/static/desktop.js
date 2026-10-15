@@ -23,6 +23,7 @@
     
     const bar = document.getElementById('deskbar');
     if (bar) {
+        document.getElementById('dkReload').addEventListener('click', reload);
         document.getElementById('dkMin').addEventListener('click', () => call('minimize'));
         document.getElementById('dkMax').addEventListener('click',
             () => call('toggle_maximize').then(paintMax));
@@ -41,6 +42,15 @@
             t = setTimeout(syncMax, 120);
         });
         syncMax();
+    }
+
+    // Reloads the page the window is showing. Everything the launcher knows lives in
+    // the local server, so this throws away only the view: a running server, a recording
+    // job or a download all carry on and are read back on the way up.
+    function reload() {
+        const button = document.getElementById('dkReload');
+        if (button) button.classList.add('dk-spin');
+        window.location.reload();
     }
 
     function paintMax(maximized) {

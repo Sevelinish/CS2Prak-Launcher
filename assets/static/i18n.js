@@ -320,6 +320,7 @@ const I18N = {
     'settings.shellApply':   'RESTART TO APPLY',
     'settings.shellActive':  'RUNNING',
 
+    'deskbar.reload':  'Refresh the window',
     'deskbar.min':     'Minimize',
     'deskbar.max':     'Maximize',
     'deskbar.restore': 'Restore',
@@ -1078,6 +1079,7 @@ const I18N = {
     'settings.shellApply':   'ПЕРЕЗАПУСТИТЬ И ПРИМЕНИТЬ',
     'settings.shellActive':  'РАБОТАЕТ',
 
+    'deskbar.reload':  'Обновить окно',
     'deskbar.min':     'Свернуть',
     'deskbar.max':     'Развернуть',
     'deskbar.restore': 'Вернуть размер',

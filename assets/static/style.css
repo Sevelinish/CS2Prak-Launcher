@@ -3847,6 +3847,9 @@ body::before { content: none; }
 }
 
 
+@keyframes dk-spin-turn { to { transform: rotate(360deg); } }
+.dk-spin svg { animation: dk-spin-turn 0.6s linear infinite; }
+
 .dk-i-res { display: none; }
 body.is-max .dk-i-max { display: none; }
 body.is-max .dk-i-res { display: block; }
