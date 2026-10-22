@@ -13,6 +13,7 @@ const WEAPON_DISPLAY = {
     weapon_awp:'AWP', weapon_g3sg1:'G3SG1', weapon_scar20:'SCAR-20', weapon_ssg08:'SSG 08',
     weapon_m249:'M249', weapon_mag7:'MAG-7', weapon_negev:'Negev',
     weapon_nova:'Nova', weapon_sawedoff:'Sawed-Off', weapon_xm1014:'XM1014',
+    weapon_taser:'Zeus x27',
     weapon_bayonet:'Bayonet', weapon_knife_css:'Classic Knife',
     weapon_knife_flip:'Flip Knife', weapon_knife_gut:'Gut Knife',
     weapon_knife_karambit:'Karambit', weapon_knife_m9_bayonet:'M9 Bayonet',
@@ -32,7 +33,7 @@ const CATEGORIES = [
     { id:'pistols', label:'PISTOLS',
       weapons:['weapon_deagle','weapon_elite','weapon_fiveseven','weapon_glock',
                'weapon_hkp2000','weapon_p250','weapon_tec9','weapon_usp_silencer',
-               'weapon_cz75a','weapon_revolver'] },
+               'weapon_cz75a','weapon_revolver','weapon_taser'] },
     { id:'smgs',    label:'SMGs',
       weapons:['weapon_bizon','weapon_mac10','weapon_mp5sd','weapon_mp7',
                'weapon_mp9','weapon_p90','weapon_ump45'] },
@@ -44,6 +45,8 @@ const CATEGORIES = [
     { id:'knives',  label:'KNIVES',  weapons:[] },
     { id:'gloves',  label:'GLOVES',  weapons:[] },
     { id:'agents',  label:'AGENTS',  weapons:[] },
+    { id:'music',   label:'MUSIC',   weapons:[] },
+    { id:'pins',    label:'PINS',    weapons:[] },
 ];
 
 const KNIFE_WEAPONS = [
@@ -63,8 +66,14 @@ const SP = {
     catalogue: {},            
     glovesCat: [],
     agentsCat: [],
-    stickersCat: [],          
-    stickerMap: {},           
+    stickersCat: [],
+    stickerMap: {},
+    keychainsCat: [],
+    keychainMap: {},
+    musicCat: [],
+    pinsCat: [],
+    music: { 2: 0, 3: 0 },
+    pin:   { 2: 0, 3: 0 },
     currentCategory: 'rifles',
     currentWeapon: null,
     currentKnifeWeapon: null, 
@@ -79,6 +88,8 @@ const SP = {
     agent: { 2: null, 3: null },
     
     _activeStickerSlot: -1,
+    // The slot picker serves both stickers and charms; this says which.
+    _pickerMode: 'sticker',
 };
 
 const backdrop       = document.getElementById('spBackdrop');
@@ -117,11 +128,16 @@ window.openSkinPicker = async function(steamid) {
 };
 
 async function loadCatalogues() {
-    const [s, g, a, st] = await Promise.all([
+    const grab = path => fetch(path).then(r => r.json()).catch(() => []);
+
+    const [s, g, a, st, kc, mu, pn] = await Promise.all([
         fetch('/api/catalogue/skins').then(r => r.json()),
         fetch('/api/catalogue/gloves').then(r => r.json()),
         fetch('/api/catalogue/agents').then(r => r.json()),
         fetch('/api/catalogue/stickers').then(r => r.json()),
+        grab('/api/catalogue/keychains'),
+        grab('/api/catalogue/music'),
+        grab('/api/catalogue/pins'),
     ]);
     SP.catalogue = s;
     SP.glovesCat = g;
@@ -129,10 +145,20 @@ async function loadCatalogues() {
     SP.stickersCat = st;
     SP.stickerMap = {};
     for (const s of st) {
-        
+
         s._lc = s.name.toLowerCase().replace(/^sticker \| /, '');
         SP.stickerMap[parseInt(s.id)] = s;
     }
+
+    SP.keychainsCat = kc || [];
+    SP.keychainMap = {};
+    for (const k of SP.keychainsCat) {
+        k._lc = k.name.toLowerCase().replace(/^charm \| /, '');
+        SP.keychainMap[parseInt(k.id)] = k;
+    }
+
+    SP.musicCat = mu || [];
+    SP.pinsCat = pn || [];
 }
 
 async function loadPlayerData(steamid) {
@@ -157,6 +183,7 @@ async function loadPlayerData(steamid) {
                     parseStickerStr(row.weapon_sticker_3),
                     parseStickerStr(row.weapon_sticker_4),
                 ],
+                keychain: parseStickerStr(row.weapon_keychain),
             };
         }
 
@@ -173,6 +200,16 @@ async function loadPlayerData(steamid) {
         SP.agent = { 2: null, 3: null };
         if (data.agents && data.agents.agent_ct) SP.agent[3] = data.agents.agent_ct;
         if (data.agents && data.agents.agent_t)  SP.agent[2] = data.agents.agent_t;
+
+        SP.music = { 2: 0, 3: 0 };
+        for (const row of (data.music || [])) {
+            SP.music[row.weapon_team] = parseInt(row.music_id) || 0;
+        }
+
+        SP.pin = { 2: 0, 3: 0 };
+        for (const row of (data.pins || [])) {
+            SP.pin[row.weapon_team] = parseInt(row.id) || 0;
+        }
 
     } catch(e) {
         console.error('Failed to load player data', e);
@@ -214,6 +251,10 @@ function selectCategory(catId) {
         renderGlovesGrid();
     } else if (catId === 'agents') {
         renderAgentsGrid();
+    } else if (catId === 'music') {
+        renderSimpleGrid('music');
+    } else if (catId === 'pins') {
+        renderSimpleGrid('pins');
     } else {
         const cat = CATEGORIES.find(c => c.id === catId);
         if (cat && cat.weapons.length) selectWeapon(cat.weapons[0]);
@@ -231,7 +272,8 @@ function renderWeaponList(catId) {
         weapons = cat ? cat.weapons : [];
     }
 
-    if (catId === 'knives' || catId === 'gloves' || catId === 'agents') {
+    if (catId === 'knives' || catId === 'gloves' || catId === 'agents'
+        || catId === 'music' || catId === 'pins') {
         spWeaponListEl.innerHTML = '';
         return;
     }
@@ -393,6 +435,71 @@ function renderGlovesGrid() {
     }
 }
 
+// Music kits and pins are the same shape in WeaponPaints: a flat {id, name, image}
+// list and one choice per player, so one grid serves both.
+function renderSimpleGrid(kind) {
+    const isMusic = kind === 'music';
+    const items = isMusic ? SP.musicCat : SP.pinsCat;
+    const store = isMusic ? SP.music : SP.pin;
+
+    removeKnifeSelector();
+    spWeaponListEl.innerHTML = '';
+    spGridHeaderEl.textContent = isMusic ? 'MUSIC KITS' : 'PINS';
+    spGridEl.innerHTML = '';
+    hidePreview();
+
+    if (!items.length) {
+        const empty = document.createElement('div');
+        empty.className = 'stp-empty';
+        empty.textContent = 'Update WeaponPaints to get this catalogue';
+        spGridEl.appendChild(empty);
+        return;
+    }
+
+    const current = store[SP.team] || 0;
+
+    const none = document.createElement('div');
+    none.className = 'sp-skin-card' + (current ? '' : ' selected');
+    none.appendChild(createImgWrap(''));
+    const noneName = document.createElement('div');
+    noneName.className = 'sp-skin-name';
+    noneName.textContent = 'None';
+    none.appendChild(noneName);
+    none.addEventListener('click', () => {
+        document.querySelectorAll('.sp-skin-card').forEach(c => c.classList.remove('selected'));
+        none.classList.add('selected');
+        store[3] = 0;
+        store[2] = 0;
+        hidePreview();
+    });
+    spGridEl.appendChild(none);
+
+    for (const item of items) {
+        const id = parseInt(item.id) || 0;
+        const card = document.createElement('div');
+        card.className = 'sp-skin-card' + (id === current ? ' selected' : '');
+        card.title = item.name;
+
+        card.appendChild(createImgWrap(item.image));
+        const nameEl = document.createElement('div');
+        nameEl.className = 'sp-skin-name';
+        nameEl.textContent = item.name;
+        card.appendChild(nameEl);
+
+        card.addEventListener('click', () => {
+            document.querySelectorAll('.sp-skin-card').forEach(c => c.classList.remove('selected'));
+            card.classList.add('selected');
+            // Both sides get it: a music kit and a pin are not per team in practice.
+            store[3] = id;
+            store[2] = id;
+            showPreviewBasic(item.image, item.name);
+        });
+
+        spGridEl.appendChild(card);
+        if (id === current) showPreviewBasic(item.image, item.name);
+    }
+}
+
 function renderAgentsGrid() {
     removeKnifeSelector();
     spWeaponListEl.innerHTML = '';
@@ -446,6 +553,7 @@ function selectSkin(skinEntry, card, isKnife) {
         stattrak: existing.stattrak ?? false,
         stattrak_count: existing.stattrak_count ?? 0,
         stickers: existing.stickers ?? [0, 0, 0, 0, 0],
+        keychain: existing.keychain ?? 0,
     };
     closeStickerPanel();
 
@@ -496,6 +604,8 @@ function showPreviewBasic(imageUrl, name) {
     
     const rowEl = document.getElementById('spStickerRow');
     if (rowEl) rowEl.style.display = 'none';
+    const charmRow = document.getElementById('spCharmRow');
+    if (charmRow) charmRow.style.display = 'none';
 }
 
 function hidePreview() {
@@ -564,6 +674,8 @@ function syncBoth() {
     SP.selections[2] = copy;
     SP.knife[2] = SP.knife[3];
     SP.glove[2] = SP.glove[3] ? { ...SP.glove[3] } : null;
+    SP.music[2] = SP.music[3];
+    SP.pin[2] = SP.pin[3];
 }
 
 spSaveBtn.addEventListener('click', async () => {
@@ -608,6 +720,7 @@ function buildPayload() {
                 stattrak: cfg.stattrak,
                 stattrak_count: cfg.stattrak_count || 0,
                 stickers: (cfg.stickers || [0,0,0,0,0]).map(buildStickerStr),
+                keychain: buildKeychainStr(cfg.keychain),
             });
         }
 
@@ -629,11 +742,20 @@ function buildPayload() {
         }
     }
 
+    const music = [];
+    const pins = [];
+    for (const team of [2, 3]) {
+        music.push({ team, music_id: SP.music[team] || 0 });
+        pins.push({ team, id: SP.pin[team] || 0 });
+    }
+
     return {
         skins,
         knives,
         gloves,
         agents: { ct: SP.agent[3], t: SP.agent[2] },
+        music,
+        pins,
     };
 }
 
@@ -656,6 +778,12 @@ function buildStickerStr(id) {
     return `${id};0;0;0;0;1;0`;
 }
 
+// id;offsetX;offsetY;offsetZ;seed - the plugin places the charm itself, so the
+// offsets stay at zero and only the id matters here.
+function buildKeychainStr(id) {
+    return id ? `${id};0;0;0;0` : '0;0;0;0;0';
+}
+
 function currentSkinCfg() {
     if (!SP.currentSkinEntry) return null;
     const defindex = SP.currentSkinEntry.weapon_defindex;
@@ -663,6 +791,8 @@ function currentSkinCfg() {
 }
 
 function renderStickerSlots() {
+    renderCharmSlot();
+
     const slotsEl = document.getElementById('spStickerSlots');
     const rowEl   = document.getElementById('spStickerRow');
     if (!slotsEl || !rowEl) return;
@@ -714,15 +844,74 @@ function renderStickerSlots() {
     }
 }
 
+// One slot, same look as a sticker slot, feeding the same picker in charm mode.
+function renderCharmSlot() {
+    const slotEl = document.getElementById('spCharmSlot');
+    const rowEl  = document.getElementById('spCharmRow');
+    if (!slotEl || !rowEl) return;
+
+    if (SP.currentCategory === 'knives' || SP.currentCategory === 'agents'
+        || SP.currentCategory === 'gloves' || !SP.keychainsCat.length) {
+        rowEl.style.display = 'none';
+        slotEl.innerHTML = '';
+        return;
+    }
+    rowEl.style.display = '';
+
+    const cfg = currentSkinCfg();
+    slotEl.innerHTML = '';
+    if (!cfg) return;
+
+    const id = cfg.keychain || 0;
+    const entry = id ? SP.keychainMap[id] : null;
+    const isActive = SP._pickerMode === 'charm' && SP._activeStickerSlot === 0;
+
+    const slot = document.createElement('div');
+    slot.className = 'sp-sticker-slot'
+        + (id ? ' has-sticker' : '')
+        + (isActive ? ' active' : '');
+    slot.title = entry ? entry.name : 'Charm';
+
+    if (entry) {
+        const img = document.createElement('img');
+        img.src = entry.image;
+        img.alt = '';
+        img.className = 'sp-sticker-slot-img';
+        img.loading = 'lazy';
+        slot.appendChild(img);
+    } else {
+        const plus = document.createElement('span');
+        plus.className = 'sp-sticker-slot-plus';
+        plus.textContent = '+';
+        slot.appendChild(plus);
+    }
+
+    slot.addEventListener('click', openCharmPanel);
+    slotEl.appendChild(slot);
+}
+
+function openCharmPanel() {
+    if (SP._pickerMode === 'charm' && stpBackdrop.style.display !== 'none') {
+        closeStickerPanel();
+        return;
+    }
+    SP._pickerMode = 'charm';
+    SP._activeStickerSlot = 0;
+    renderStickerSlots();
+    openStickerPanel();
+}
+
 const stpBackdrop = document.getElementById('stpBackdrop');
 const stpSearch   = document.getElementById('stpSearch');
 const stpGrid     = document.getElementById('stpGrid');
 const stpSlotNum  = document.getElementById('stpSlotNum');
 
 function toggleStickerPanel(slot) {
-    if (SP._activeStickerSlot === slot && stpBackdrop.style.display !== 'none') {
+    if (SP._pickerMode === 'sticker' && SP._activeStickerSlot === slot
+        && stpBackdrop.style.display !== 'none') {
         closeStickerPanel();
     } else {
+        SP._pickerMode = 'sticker';
         SP._activeStickerSlot = slot;
         renderStickerSlots();
         openStickerPanel();
@@ -730,7 +919,14 @@ function toggleStickerPanel(slot) {
 }
 
 function openStickerPanel() {
-    stpSlotNum.textContent = SP._activeStickerSlot + 1;
+    const charm = SP._pickerMode === 'charm';
+    const title = document.getElementById('stpTitle');
+    if (title) {
+        title.textContent = charm
+            ? 'CHARM'
+            : 'SLOT ' + (SP._activeStickerSlot + 1) + ' \u2014 STICKER';
+    }
+    stpSearch.placeholder = charm ? 'Search charms…' : 'Search stickers…';
     stpSearch.value = '';
     renderStickerGrid('');
     stpBackdrop.style.display = 'flex';
@@ -739,6 +935,7 @@ function openStickerPanel() {
 
 function closeStickerPanel() {
     SP._activeStickerSlot = -1;
+    SP._pickerMode = 'sticker';
     stpBackdrop.style.display = 'none';
     renderStickerSlots();
 }
@@ -755,8 +952,10 @@ function _stickerMsg(text) {
 function renderStickerGrid(query) {
     stpGrid.innerHTML = '';
     const q = query.toLowerCase().trim();
+    const charm = SP._pickerMode === 'charm';
 
-    if (q.length < 2) {
+    // 11k stickers need a query before anything is drawn; 78 charms do not.
+    if (!charm && q.length < 2) {
         _stickerMsg(q.length === 0 ? 'Type to search stickers…' : 'Keep typing…');
         return;
     }
@@ -764,7 +963,7 @@ function renderStickerGrid(query) {
     const frag = document.createDocumentFragment();
     let shown = 0, total = 0;
 
-    for (const s of SP.stickersCat) {
+    for (const s of (charm ? SP.keychainsCat : SP.stickersCat)) {
         if (!s._lc.includes(q)) continue;
         total++;
         if (shown < STICKER_MAX) {
@@ -776,19 +975,27 @@ function renderStickerGrid(query) {
             nameEl.className = 'sp-skin-name';
             nameEl.textContent = s.name.includes('| ') ? s.name.slice(s.name.indexOf('| ') + 2) : s.name;
             card.appendChild(nameEl);
-            card.addEventListener('click', () => pickSticker(parseInt(s.id)));
+            card.addEventListener('click', () => (charm ? pickCharm : pickSticker)(parseInt(s.id)));
             frag.appendChild(card);
             shown++;
         }
     }
 
-    if (total === 0) { _stickerMsg('No stickers found'); return; }
+    if (total === 0) { _stickerMsg(charm ? 'No charms found' : 'No stickers found'); return; }
 
     stpGrid.appendChild(frag);
 
     if (total > STICKER_MAX) {
         _stickerMsg(`Showing ${STICKER_MAX} of ${total} — type more to narrow results`);
     }
+}
+
+function pickCharm(id) {
+    const cfg = currentSkinCfg();
+    if (!cfg) return;
+    cfg.keychain = id;
+    syncBoth();
+    closeStickerPanel();
 }
 
 function pickSticker(stickerId) {
@@ -815,10 +1022,18 @@ stpBackdrop.addEventListener('click', e => {
 });
 
 document.getElementById('stpClearBtn').addEventListener('click', () => {
-    const slot = SP._activeStickerSlot;
-    if (slot < 0) return;
     const cfg = currentSkinCfg();
     if (!cfg) return;
+
+    if (SP._pickerMode === 'charm') {
+        cfg.keychain = 0;
+        syncBoth();
+        closeStickerPanel();
+        return;
+    }
+
+    const slot = SP._activeStickerSlot;
+    if (slot < 0) return;
     if (!cfg.stickers) cfg.stickers = [0, 0, 0, 0, 0];
     cfg.stickers[slot] = 0;
     syncBoth();

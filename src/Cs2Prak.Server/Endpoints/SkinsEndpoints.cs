@@ -24,6 +24,9 @@ public static partial class SkinsEndpoints
         app.MapGet("/api/catalogue/gloves", () => Catalogue(() => Catalogues.Gloves));
         app.MapGet("/api/catalogue/agents", () => Catalogue(() => Catalogues.Agents));
         app.MapGet("/api/catalogue/stickers", () => Catalogue(() => Catalogues.Stickers));
+        app.MapGet("/api/catalogue/keychains", () => Catalogue(() => Catalogues.Keychains));
+        app.MapGet("/api/catalogue/music", () => Catalogue(() => Catalogues.Music));
+        app.MapGet("/api/catalogue/pins", () => Catalogue(() => Catalogues.Pins));
 
         app.MapGet("/api/player/{steamid}", GetPlayer);
         app.MapPost("/api/player/{steamid}/save", SavePlayer);

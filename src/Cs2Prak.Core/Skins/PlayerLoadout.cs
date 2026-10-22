@@ -7,13 +7,16 @@ public static class PlayerLoadout
 {
     private const string EmptySticker = "0;0;0;0;0;0;0";
 
+    // WeaponPaints reads a charm as id;offsetX;offsetY;offsetZ;seed on the weapon row.
+    private const string EmptyKeychain = "0;0;0;0;0";
+
     private static readonly string[] SkinColumns =
     [
         "weapon_team", "weapon_defindex", "weapon_paint_id",
         "weapon_wear", "weapon_seed", "weapon_nametag",
         "weapon_stattrak", "weapon_stattrak_count",
         "weapon_sticker_0", "weapon_sticker_1", "weapon_sticker_2",
-        "weapon_sticker_3", "weapon_sticker_4",
+        "weapon_sticker_3", "weapon_sticker_4", "weapon_keychain",
     ];
 
     public static JsonObject Read(string steamId)
@@ -33,12 +36,20 @@ public static class PlayerLoadout
         var agents = Query(conn,
             "SELECT agent_ct, agent_t FROM wp_player_agents WHERE steamid=$id", steamId);
 
+        var music = Query(conn,
+            "SELECT weapon_team, music_id FROM wp_player_music WHERE steamid=$id", steamId);
+
+        var pins = Query(conn,
+            "SELECT weapon_team, id FROM wp_player_pins WHERE steamid=$id", steamId);
+
         return new JsonObject
         {
             ["skins"] = skins,
             ["knives"] = knives,
             ["gloves"] = gloves,
             ["agents"] = agents.Count > 0 ? agents[0]!.DeepClone() : new JsonObject(),
+            ["music"] = music,
+            ["pins"] = pins,
         };
     }
 
@@ -89,9 +100,9 @@ public static class PlayerLoadout
                      weapon_wear, weapon_seed, weapon_nametag,
                      weapon_stattrak, weapon_stattrak_count,
                      weapon_sticker_0, weapon_sticker_1, weapon_sticker_2,
-                     weapon_sticker_3, weapon_sticker_4)
+                     weapon_sticker_3, weapon_sticker_4, weapon_keychain)
                 VALUES ($id, $team, $defindex, $paint, $wear, $seed, $nametag,
-                        $stattrak, $stattrakCount, $s0, $s1, $s2, $s3, $s4)
+                        $stattrak, $stattrakCount, $s0, $s1, $s2, $s3, $s4, $keychain)
                 """,
                 ("$id", steamId),
                 ("$team", Int(skin, "team")),
@@ -103,7 +114,10 @@ public static class PlayerLoadout
                 ("$stattrak", Bool(skin, "stattrak") ? 1L : 0L),
                 ("$stattrakCount", Int(skin, "stattrak_count")),
                 ("$s0", stickers[0]), ("$s1", stickers[1]), ("$s2", stickers[2]),
-                ("$s3", stickers[3]), ("$s4", stickers[4]));
+                ("$s3", stickers[3]), ("$s4", stickers[4]),
+                ("$keychain", Text(skin, "keychain") is { Length: > 0 } charm
+                    ? charm
+                    : EmptyKeychain));
         }
 
         foreach (var node in Array(payload, "knives"))
@@ -126,6 +140,28 @@ public static class PlayerLoadout
                 ("$id", steamId),
                 ("$team", Int(glove, "team")),
                 ("$defindex", Int(glove, "defindex")));
+        }
+
+        foreach (var node in Array(payload, "music"))
+        {
+            if (node is not JsonObject music) continue;
+            Execute(conn, tx,
+                "INSERT OR REPLACE INTO wp_player_music (steamid, weapon_team, music_id) "
+                + "VALUES ($id, $team, $music)",
+                ("$id", steamId),
+                ("$team", Int(music, "team")),
+                ("$music", Int(music, "music_id")));
+        }
+
+        foreach (var node in Array(payload, "pins"))
+        {
+            if (node is not JsonObject pin) continue;
+            Execute(conn, tx,
+                "INSERT OR REPLACE INTO wp_player_pins (steamid, weapon_team, id) "
+                + "VALUES ($id, $team, $pin)",
+                ("$id", steamId),
+                ("$team", Int(pin, "team")),
+                ("$pin", Int(pin, "id")));
         }
 
         if (payload["agents"] is JsonObject agents)

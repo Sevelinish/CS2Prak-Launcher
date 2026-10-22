@@ -6,7 +6,10 @@ namespace Cs2Prak.Core.Skins;
 public static class Catalogues
 {
     private static readonly string[] Files =
-        ["skins_en.json", "gloves_en.json", "agents_en.json", "stickers_en.json"];
+    [
+        "skins_en.json", "gloves_en.json", "agents_en.json", "stickers_en.json",
+        "keychains_en.json", "music_en.json", "collectibles_en.json",
+    ];
 
     private static readonly object Gate = new();
     private static readonly Dictionary<string, DateTime> Stamps = new();
@@ -16,6 +19,9 @@ public static class Catalogues
     public static JsonArray Gloves { get; private set; } = [];
     public static JsonArray Agents { get; private set; } = [];
     public static JsonArray Stickers { get; private set; } = [];
+    public static JsonArray Keychains { get; private set; } = [];
+    public static JsonArray Music { get; private set; } = [];
+    public static JsonArray Pins { get; private set; } = [];
 
     public static bool Any => SkinsByWeapon.Count > 0;
 
@@ -58,6 +64,9 @@ public static class Catalogues
             Gloves = Load("gloves_en.json") as JsonArray ?? [];
             Agents = Load("agents_en.json") as JsonArray ?? [];
             Stickers = Load("stickers_en.json") as JsonArray ?? [];
+            Keychains = Load("keychains_en.json") as JsonArray ?? [];
+            Music = Load("music_en.json") as JsonArray ?? [];
+            Pins = Load("collectibles_en.json") as JsonArray ?? [];
 
             foreach (var name in Files) Stamps[name] = StampOf(name);
         }

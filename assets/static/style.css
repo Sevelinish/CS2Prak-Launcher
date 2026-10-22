@@ -1596,6 +1596,11 @@ body::before { content: none; }
 .sp-sticker-slot-img { width: 100%; height: 100%; object-fit: contain; padding: 5px; padding-bottom: 14px; }
 .sp-sticker-slot-num { position: absolute; bottom: 2px; left: 0; right: 0; text-align: center; font-family: var(--font-mono); font-size: 9px; color: var(--text-muted); letter-spacing: 1px; pointer-events: none; }
 .sp-sticker-slot-plus { font-size: 16px; color: var(--text-muted); line-height: 1; margin-bottom: 10px; }
+/* One charm, sized like a single sticker slot rather than stretched across the row:
+   five slots and four 5px gaps make one slot (100% - 20px) / 5 wide. */
+.sp-charm-slots .sp-sticker-slot { flex: 0 0 calc((100% - 20px) / 5); }
+.sp-charm-slots .sp-sticker-slot-img { padding-bottom: 5px; }
+.sp-charm-slots .sp-sticker-slot-plus { margin-bottom: 0; }
 
 .stp-backdrop { position: fixed; inset: 0; background: rgba(6,5,4,0.72); z-index: 550; display: flex; align-items: center; justify-content: center; }
 .stp-modal { background: var(--surface); border: 1px solid var(--line-strong); border-radius: 0; width: min(620px, 94vw); display: flex; flex-direction: column; box-shadow: 0 24px 60px rgba(0,0,0,0.7); overflow: clip; }

@@ -14,10 +14,12 @@ Everything runs on your machine: demos are parsed locally and nothing is uploade
 **Server.** Installs a CS2 dedicated server through SteamCMD, launches it on a map
 from the FACEIT pool, and gives you the connect string or a direct join into CS2.
 
-**Skins.** Configures WeaponPaints loadouts: skins, knives, gloves, agents, wear,
-seed, name tags, StatTrak and stickers. A built-in MySQL-over-SQLite shim serves
-the plugin, so no MySQL or XAMPP install is needed. Skins can also be pulled from
-an HLTV player profile.
+**Skins.** Configures WeaponPaints loadouts: skins, knives, gloves, agents, music
+kits, pins, wear, seed, name tags, StatTrak, stickers and charms. The weapon list
+covers everything WeaponPaints carries, the Zeus x27 included, and the catalogue is
+read from the installed plugin, so new skins appear as soon as WeaponPaints is
+updated. A built-in MySQL-over-SQLite shim serves the plugin, so no MySQL or XAMPP
+install is needed. Skins can also be pulled from an HLTV player profile.
 
 **Plugins.** Installs and updates Metamod:Source, CounterStrikeSharp, MatchZy,
 WeaponPaints, PlayerSettings, MenuManagerCS2 and AnyBaseLibCS2 straight from their

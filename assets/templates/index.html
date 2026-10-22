@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CS2 Practice Server</title>
-    <link rel="stylesheet" href="/static/style.css?v=214">
+    <link rel="stylesheet" href="/static/style.css?v=216">
     
     <script>(function(){try{document.documentElement.removeAttribute('data-theme');localStorage.setItem('cs2prak_theme','dark');}catch(e){}})();</script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1023,6 +1023,10 @@
                   <label class="sp-config-label">STICKERS</label>
                   <div class="sp-sticker-slots" id="spStickerSlots"></div>
                 </div>
+                <div class="sp-config-row" id="spCharmRow">
+                  <label class="sp-config-label">CHARM</label>
+                  <div class="sp-sticker-slots sp-charm-slots" id="spCharmSlot"></div>
+                </div>
               </div>
             </div>
           </div>
@@ -1067,7 +1071,7 @@
     <div class="stp-backdrop" id="stpBackdrop" style="display:none">
       <div class="stp-modal">
         <div class="stp-header">
-          <span class="stp-title">SLOT <span id="stpSlotNum">1</span> — STICKER</span>
+          <span class="stp-title" id="stpTitle">SLOT <span id="stpSlotNum">1</span> — STICKER</span>
           <input type="text" id="stpSearch" class="stp-search" placeholder="Search stickers…" autocomplete="off">
           <button class="stp-clear-btn" id="stpClearBtn">CLEAR</button>
           <button class="sp-close-btn" id="stpCloseBtn">
@@ -1137,7 +1141,7 @@
     <script src="/static/i18n.js?v=158"></script>
     <script src="/static/script.js?v=124"></script>
     <script src="/static/desktop.js?v=7"></script>
-    <script src="/static/skinpicker.js?v=104"></script>
+    <script src="/static/skinpicker.js?v=107"></script>
     <script src="/static/binds.js?v=101"></script>
     
     <div class="imp" id="impPanel" hidden>
