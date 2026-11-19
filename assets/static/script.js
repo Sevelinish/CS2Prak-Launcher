@@ -12,6 +12,7 @@ const MAPS = [
     
     { id: 'de_vertigo',   name: 'VERTIGO',   file: 'Vertigo.jpg', extra: true },
     { id: 'de_train',     name: 'TRAIN',     file: 'Train.jpg',   extra: true },
+    { id: 'de_cbble',     name: 'COBBLESTONE', file: 'Cobblestone.jpg', extra: true },
 ];
 
 let selectedMap   = null;
